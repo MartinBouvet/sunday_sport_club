@@ -1,7 +1,7 @@
 import '../../data/repositories/user_repository.dart';
 import '../../data/models/user.dart';
 
-class UserService {
+class BookingService {
   final UserRepository _userRepository = UserRepository();
 
   // Get user by ID
@@ -60,7 +60,7 @@ class UserService {
     final user = await _userRepository.getUser(userId);
     
     if (user != null) {
-      int currentExp = user.experiencePoints ?? 0;
+      int currentExp = user.experiencePoints;
       int newExp = currentExp + points;
       
       // Simple level calculation (customize as needed)
@@ -68,7 +68,7 @@ class UserService {
       int newLevel = (newExp / 100).floor() + 1;
       
       // Update avatar stage based on level
-      String avatarStage = user.avatarStage ?? 'mince';
+      String avatarStage = user.avatarStage;
       if (newLevel >= 10 && avatarStage == 'mince') {
         avatarStage = 'moyen';
       } else if (newLevel >= 20 && avatarStage == 'moyen') {

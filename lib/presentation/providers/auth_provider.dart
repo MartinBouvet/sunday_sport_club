@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase_auth;
 import '../../data/repositories/auth_repository.dart';
 import '../../domain/services/auth_service.dart';
 import '../../data/models/user.dart' as app_models;
-import '../../data/datasources/local/shared_prefs_helper.dart';
+import '../../data/datasources/supabase/shared_prefs_helper.dart';
 import '../../core/utils/supabase_client.dart';
 
 class AuthProvider extends ChangeNotifier {

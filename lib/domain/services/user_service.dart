@@ -80,18 +80,18 @@ class UserService {
     }
     
     // Calculate new experience and level
-    int currentExp = user.experiencePoints ?? 0;
+    int currentExp = user.experiencePoints;
     int newExp = currentExp + points;
     
     // Level calculation formula (adjust as needed)
     // This uses a simple formula where every 100 points = 1 level
-    int currentLevel = user.level ?? 1;
+    int currentLevel = user.level;
     int newLevel = (newExp / 100).floor() + 1;
     
     bool leveledUp = newLevel > currentLevel;
     
     // Determine avatar stage based on level
-    String currentAvatarStage = user.avatarStage ?? 'mince';
+    String currentAvatarStage = user.avatarStage;
     String newAvatarStage = currentAvatarStage;
     
     // Logic for avatar progression
