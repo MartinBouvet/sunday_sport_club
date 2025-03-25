@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'core/utils/supabase_client.dart';
 
+<<<<<<< HEAD
 void main() {
   runApp(const MyApp());
 }
@@ -119,4 +122,13 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+=======
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialiser Supabase
+  await initializeSupabase();
+
+  runApp(MyApp());
+>>>>>>> 6a8a4a35ef223fc0fbbf822a925f9ef82b25a486
 }
