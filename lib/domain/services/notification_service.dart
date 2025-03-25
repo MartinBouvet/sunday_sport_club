@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../data/models/user.dart';
 
 class NotificationService {
   // In a real application, this would likely use Firebase Cloud Messaging

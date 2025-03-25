@@ -19,16 +19,8 @@ class Validators {
   );
 
   // Expression régulière pour valider un code postal français
-<<<<<<< HEAD
-  static final RegExp _zipCodeRegex = RegExp(
-    r'^[0-9]{5}$',
-  );
-
-  
-=======
   static final RegExp _zipCodeRegex = RegExp(r'^[0-9]{5}$');
 
->>>>>>> 12e7b9bea2a42b0169dd14a1af3cecc34d74b8e9
   /// Valide si une chaîne n'est pas vide
   ///
   /// Retourne null si valide, sinon un message d'erreur

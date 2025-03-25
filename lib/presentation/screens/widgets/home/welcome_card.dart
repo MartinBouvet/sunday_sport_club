@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sunday_sport_club/core/constants/app_constants.dart';
 
 /// Widget affichant une carte de bienvenue pour l'utilisateur.
 ///

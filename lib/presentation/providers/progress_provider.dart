@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../data/models/progress_tracking.dart';
-import '../../data/repositories/progress_repository.dart';
 import '../../domain/services/progress_service.dart';
 
 class ProgressProvider extends ChangeNotifier {
-  final ProgressRepository _progressRepository = ProgressRepository();
   final ProgressService _progressService = ProgressService();
 
   ProgressTracking? _latestProgress;
