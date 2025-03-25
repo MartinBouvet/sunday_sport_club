@@ -1,5 +1,6 @@
 /// Fichier contenant les exceptions personnalisées pour l'application Sunday Sport Club.
 /// Ces exceptions permettent une gestion plus précise et plus typée des erreurs.
+library;
 
 /// Exception de base pour toutes les exceptions de l'application
 /// Toutes les autres exceptions héritent de celle-ci pour permettre
@@ -23,10 +24,10 @@ class AppException implements Exception {
 /// Exception liée à l'authentification (login, signup, etc.)
 class AuthException extends AppException {
   const AuthException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Utilisateur non trouvé
   factory AuthException.userNotFound() => const AuthException(
@@ -74,10 +75,10 @@ class AuthException extends AppException {
 /// Exception liée au réseau (connexion Internet, timeout, etc.)
 class NetworkException extends AppException {
   const NetworkException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Pas de connexion Internet
   factory NetworkException.noConnection() => const NetworkException(
@@ -102,10 +103,10 @@ class NetworkException extends AppException {
 /// Exception liée à la base de données (Supabase, SQLite, etc.)
 class DatabaseException extends AppException {
   const DatabaseException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Erreur de lecture
   factory DatabaseException.readError({Object? cause}) => DatabaseException(
@@ -154,11 +155,11 @@ class ValidationException extends AppException {
   final Map<String, String>? fieldErrors;
 
   const ValidationException(
-    String message, {
+    super.message, {
     this.fieldErrors,
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.code,
+    super.cause,
+  });
   
   /// Champ requis manquant
   factory ValidationException.requiredField(String fieldName) => ValidationException(
@@ -203,10 +204,10 @@ class ValidationException extends AppException {
 /// Exception liée aux permissions/autorisations
 class PermissionException extends AppException {
   const PermissionException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Accès refusé
   factory PermissionException.accessDenied() => const PermissionException(
@@ -236,10 +237,10 @@ class PermissionException extends AppException {
 /// Exception liée aux fonctionnalités non implémentées
 class NotImplementedException extends AppException {
   const NotImplementedException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Constructeur par défaut
   factory NotImplementedException.feature(String featureName) => NotImplementedException(
@@ -251,10 +252,10 @@ class NotImplementedException extends AppException {
 /// Exception liée au paiement (Stripe, etc.)
 class PaymentException extends AppException {
   const PaymentException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Carte refusée
   factory PaymentException.cardDeclined() => const PaymentException(
@@ -285,10 +286,10 @@ class PaymentException extends AppException {
 /// Exception liée au stockage (upload/download de fichiers)
 class StorageException extends AppException {
   const StorageException(
-    String message, {
-    String? code,
-    Object? cause,
-  }) : super(message, code: code, cause: cause);
+    super.message, {
+    super.code,
+    super.cause,
+  });
   
   /// Erreur d'upload
   factory StorageException.uploadFailed({Object? cause}) => StorageException(

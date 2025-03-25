@@ -165,7 +165,7 @@ class APIConstants {
     required String skinColor,
     required String stage,
   }) {
-    return '/assets/avatars/${gender}_${skinColor}_${stage}.png';
+    return '/assets/avatars/${gender}_${skinColor}_$stage.png';
   }
   
   // Récupère l'URL complète pour un endpoint en remplaçant les paramètres

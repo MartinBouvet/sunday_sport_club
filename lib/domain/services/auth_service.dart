@@ -1,55 +1,43 @@
-import 'package:supabase_flutter/supabase_flutter.dart' as supabase_auth;
-import '../../data/datasources/supabase/supabase_auth_datasource.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/user_repository.dart';
-import '../../data/models/user.dart';
+import '../../data/models/user.dart' as app_models;
 import '../../core/utils/supabase_client.dart';
 
 class AuthService {
-  final SupabaseAuthDatasource _authDatasource = SupabaseAuthDatasource();
   final UserRepository _userRepository = UserRepository();
 
-  // Get the current authenticated user's ID
-  String? get currentUserId => _authDatasource.currentUser?.id;
+  // Vérifier si utilisateur est connecté
+  bool get isLoggedIn => supabase.auth.currentUser != null;
 
-  // Check if user is logged in
-  bool get isLoggedIn => _authDatasource.currentUser != null;
-
-  // Check if the current session is valid
+  // Vérifier validité session
   Future<bool> isSessionValid() async {
     try {
-      // Check if there's a current session
       final session = supabase.auth.currentSession;
-      if (session == null) {
-        return false;
-      }
-      
-      // Check if token is expired
+      if (session == null) return false;
+
+      // Vérifier expiration
       final now = DateTime.now().millisecondsSinceEpoch / 1000;
       if (session.expiresAt != null && session.expiresAt! < now) {
         return false;
       }
-      
-      // Optional: Perform a lightweight API call to verify the token is still accepted
-      await supabase.auth.getUser();
-      
+
       return true;
     } catch (e) {
-      // If any error occurs, consider the session invalid
       return false;
     }
   }
 
-  // Get the current authenticated user's data
-  Future<User?> getCurrentUser() async {
-    final userId = currentUserId;
+  // Récupérer utilisateur actuel
+  Future<app_models.User?> getCurrentUser() async {
+    final userId = supabase.auth.currentUser?.id;
     if (userId != null) {
       return await _userRepository.getUser(userId);
     }
     return null;
   }
 
-  // Register a new user
-  Future<User?> register({
+  // Inscription nouvel utilisateur
+  Future<app_models.User?> register({
     required String email,
     required String password,
     required String firstName,
@@ -58,13 +46,14 @@ class AuthService {
     String skinColor = 'blanc',
   }) async {
     try {
-      // Register user with Supabase Auth
-      final response = await _authDatasource.signUp(email, password);
-      
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+      );
+
       if (response.user != null) {
         final userId = response.user!.id;
-        
-        // Create user profile in the database
+
         await _userRepository.createUser(
           id: userId,
           email: email,
@@ -73,56 +62,39 @@ class AuthService {
           gender: gender,
           skinColor: skinColor,
         );
-        
-        // Return the newly created user
+
         return await _userRepository.getUser(userId);
       }
       return null;
     } catch (e) {
-      // Handle registration errors
       rethrow;
     }
   }
 
-  // Login with email and password
-  Future<User?> login(String email, String password) async {
+  // Connexion utilisateur
+  Future<app_models.User?> login(String email, String password) async {
     try {
-      final response = await _authDatasource.signIn(email, password);
-      
+      final response = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
       if (response.user != null) {
         return await _userRepository.getUser(response.user!.id);
       }
       return null;
     } catch (e) {
-      // Handle login errors
       rethrow;
     }
   }
 
-  // Logout current user
+  // Déconnexion utilisateur
   Future<void> logout() async {
-    await _authDatasource.signOut();
+    await supabase.auth.signOut();
   }
 
-  // Update user password
-  Future<void> updatePassword(String newPassword) async {
-    try {
-      await supabase.auth.updateUser(
-        supabase_auth.UserAttributes(
-          password: newPassword,
-        ),
-      );
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Request password reset email
+  // Mot de passe oublié
   Future<void> resetPassword(String email) async {
-    try {
-      await supabase.auth.resetPasswordForEmail(email);
-    } catch (e) {
-      rethrow;
-    }
+    await supabase.auth.resetPasswordForEmail(email);
   }
 }

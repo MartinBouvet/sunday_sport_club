@@ -22,12 +22,7 @@ class Validators {
   static final RegExp _zipCodeRegex = RegExp(
     r'^[0-9]{5}$',
   );
-  
-  // Expression régulière pour valider un mot de passe fort
-  // Doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre
-  static final RegExp _strongPasswordRegex = RegExp(
-    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d\w\W]{8,}$',
-  );
+
   
   /// Valide si une chaîne n'est pas vide
   /// 
