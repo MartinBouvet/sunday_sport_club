@@ -69,10 +69,6 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inscription'),
-        centerTitle: true,
-      ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           // Afficher un indicateur de chargement pendant l'inscription
@@ -90,13 +86,40 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const SizedBox(height: 40),
+                  
+                  // Logo et titre
+                  Center(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 100,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.sports_martial_arts,
+                            size: 60,
+                            color: Colors.blue,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
                   // Titre
                   const Text(
                     'Créer un compte',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
+                      color: Colors.blue,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -290,7 +313,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // Bouton d'inscription
                   AppButton(
@@ -335,6 +358,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),

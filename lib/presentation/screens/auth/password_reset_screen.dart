@@ -59,10 +59,6 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mot de passe oublié'),
-        centerTitle: true,
-      ),
       body: _isLoading
           ? const LoadingIndicator(
               center: true,
@@ -82,10 +78,36 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const SizedBox(height: 60),
+          
+          // Logo et titre
+          Center(
+            child: Image.asset(
+              'assets/images/logo.png',
+              height: 100,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.sports_martial_arts,
+                    size: 60,
+                    color: Colors.blue,
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          
           // Icône et titre
           const Icon(
             Icons.lock_reset,
-            size: 80,
+            size: 60,
             color: Colors.blue,
           ),
           const SizedBox(height: 24),
@@ -95,6 +117,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: Colors.blue,
             ),
           ),
           const SizedBox(height: 16),
@@ -118,7 +141,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
             validator: Validators.email,
             isRequired: true,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
 
           // Bouton d'envoi
           AppButton(
@@ -147,6 +170,17 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
+          
+          const SizedBox(height: 24),
+          
+          // Bouton retour
+          TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Retour à la connexion'),
+          ),
         ],
       ),
     );
@@ -158,6 +192,32 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        const SizedBox(height: 60),
+        
+        // Logo
+        Center(
+          child: Image.asset(
+            'assets/images/logo.png',
+            height: 80,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.sports_martial_arts,
+                  size: 40,
+                  color: Colors.blue,
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 40),
+        
         const Icon(
           Icons.mark_email_read,
           size: 80,
@@ -169,15 +229,19 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: Colors.green,
           ),
         ),
         const SizedBox(height: 16),
-        Text(
-          'Un lien de réinitialisation a été envoyé à ${_emailController.text}. Veuillez vérifier votre boîte de réception et suivre les instructions.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          child: Text(
+            'Un lien de réinitialisation a été envoyé à ${_emailController.text}. Veuillez vérifier votre boîte de réception et suivre les instructions.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
           ),
         ),
         const SizedBox(height: 32),

@@ -1,231 +1,399 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../presentation/providers/auth_provider.dart';
-import '../../../presentation/providers/challenge_provider.dart';
 import '../../../core/widgets/avatar_display.dart';
 import '../../../core/widgets/loading_indicator.dart';
-import '../../../presentation/screens/widgets/home/welcome_card.dart';
-import '../../../presentation/screens/widgets/home/daily_challenge_card.dart';
-import '../../../presentation/screens/widgets/home/menu_card.dart';
-import '../auth/login_screen.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/challenge_provider.dart';
+import '../../providers/progress_provider.dart';
+import '../../screens/widgets/home/welcome_card.dart';
+import '../../screens/widgets/home/daily_challenge_card.dart';
+import '../../screens/widgets/home/menu_card.dart';
+import '../../screens/widgets/home/stats_card.dart';
+import '../courses/course_list_screen.dart';
+import '../routines/routines_screen.dart';
+import '../challenges/challenges_screen.dart';
+import '../membership/membership_screen.dart';
+import '../profile/profile_screen.dart';
+import '../profile/stats_screen.dart';
+import 'avatar_customization_screen.dart';
+import 'leaderboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
-    // Charger les données initiales lorsque l'écran s'initialise
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadInitialData();
-    });
+    _loadInitialData();
   }
 
-  void _loadInitialData() {
+  Future<void> _loadInitialData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final challengeProvider = Provider.of<ChallengeProvider>(context, listen: false);
+    final progressProvider = Provider.of<ProgressProvider>(context, listen: false);
 
-    if (authProvider.isAuthenticated) {
-      challengeProvider.fetchDailyChallenge();
+    if (authProvider.currentUser != null) {
+      // Charger le défi quotidien
+      await challengeProvider.fetchDailyChallenge();
+      
+      // Vérifier si l'utilisateur a déjà complété le défi
+      await challengeProvider.fetchUserChallenges(authProvider.currentUser!.id);
+      
+      // Charger les dernières statistiques de l'utilisateur
+      await progressProvider.fetchLatestProgress(authProvider.currentUser!.id);
     }
-  }
 
-  void _navigateToScreen(Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sunday Sport Club'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // Navigation vers l'écran des paramètres
-            },
-          ),
-        ],
-      ),
-      body: Consumer2<AuthProvider, ChallengeProvider>(
-        builder: (context, authProvider, challengeProvider, child) {
-          // Vérifier si l'utilisateur est en cours de chargement ou non authentifié
-          if (authProvider.isLoading) {
-            return LoadingIndicator.fullScreen();
-          }
-
-          final user = authProvider.currentUser;
-          if (user == null) {
-            return _buildLoginPrompt();
-          }
-
-          // Utilisateur authentifié - afficher le contenu principal
-          return RefreshIndicator(
-            onRefresh: () async {
-              await challengeProvider.fetchDailyChallenge();
-            },
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                // Carte de bienvenue
-                WelcomeCard(
-                  userName: "${user.firstName} ${user.lastName}",
-                  level: user.level,
-                  progressPercentage: (user.experiencePoints % 100) / 100,
-                  experiencePoints: user.experiencePoints,
-                  nextLevelXP: (user.level + 1) * 100,
-                ),
+      body: _isLoading 
+          ? const LoadingIndicator(center: true, message: 'Chargement des données...')
+          : Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                final user = authProvider.currentUser;
                 
-                const SizedBox(height: 24),
-                
-                // Avatar au centre
-                Center(
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Votre avatar',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                if (user == null) {
+                  return const Center(
+                    child: Text('Veuillez vous connecter pour accéder à votre compte'),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _loadInitialData,
+                  child: CustomScrollView(
+                    slivers: [
+                      // App Bar personnalisée avec logo
+                      SliverAppBar(
+                        expandedHeight: 120,
+                        floating: false,
+                        pinned: true,
+                        backgroundColor: Colors.blue,
+                        flexibleSpace: FlexibleSpaceBar(
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/images/logo.png',
+                                height: 36,
+                                errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Sunday Sport Club',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          centerTitle: true,
+                          background: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.blue.shade700, Colors.blue],
+                              ),
+                            ),
+                          ),
                         ),
+                        actions: [
+                          IconButton(
+                            icon: const Icon(Icons.person, color: Colors.white),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProfileScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      AvatarDisplay(
-                        gender: user.gender,
-                        skinColor: user.skinColor,
-                        stage: user.avatarStage,
-                        size: 200, // Taille augmentée pour un meilleur affichage
-                        showBorder: true,
-                        borderColor: Theme.of(context).colorScheme.primary,
-                        borderWidth: 3.0,
-                        interactive: true,
-                        onTap: () {
-                          // Navigation vers l'écran de personnalisation d'avatar
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _getAvatarStageDescription(user.avatarStage),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w500,
+                      
+                      // Contenu principal
+                      SliverPadding(
+                        padding: const EdgeInsets.all(16.0),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            // Carte de bienvenue
+                            WelcomeCard(
+                              userName: "${user.firstName} ${user.lastName}",
+                              level: user.level,
+                              progressPercentage: (user.experiencePoints % 100) / 100,
+                              experiencePoints: user.experiencePoints,
+                              nextLevelXP: (user.level * 100) + 100,
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Avatar interactif
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const AvatarCustomizationScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Column(
+                                  children: [
+                                    Stack(
+                                      alignment: Alignment.bottomRight,
+                                      children: [
+                                        AvatarWithLevel(
+                                          avatar: AvatarDisplay(
+                                            gender: user.gender,
+                                            skinColor: user.skinColor,
+                                            stage: user.avatarStage,
+                                            size: 180,
+                                            borderWidth: 3.0,
+                                          ),
+                                          level: user.level,
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue,
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 2),
+                                          ),
+                                          child: const Icon(
+                                            Icons.edit,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _getAvatarStageDescription(user.avatarStage),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Statistiques de l'utilisateur
+                            Consumer<ProgressProvider>(
+                              builder: (context, progressProvider, _) {
+                                return StatsCard(
+                                  weight: user.weight ?? 0.0,
+                                  initialWeight: user.initialWeight ?? user.weight ?? 0.0,
+                                  endurance: user.endurance,
+                                  strength: user.strength,
+                                  onUpdatePressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const StatsScreen(),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Défi quotidien
+                            Consumer<ChallengeProvider>(
+                              builder: (context, challengeProvider, _) {
+                                return DailyChallengeCard(
+                                  challenge: challengeProvider.dailyChallenge,
+                                  isCompleted: challengeProvider.dailyChallenge != null
+                                      ? challengeProvider.isChallengeCompleted(challengeProvider.dailyChallenge!.id)
+                                      : false,
+                                  onComplete: () async {
+                                    if (challengeProvider.dailyChallenge != null) {
+                                      await challengeProvider.completeChallenge(
+                                        challengeProvider.dailyChallenge!.id,
+                                        user.id,
+                                      );
+                                      
+                                      // Recharger pour mettre à jour l'avatar si nécessaire
+                                      await authProvider.loadUserData();
+                                      
+                                      // Afficher un message de félicitations
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Félicitations ! +${challengeProvider.dailyChallenge!.experiencePoints} XP gagnés'),
+                                            backgroundColor: Colors.green,
+                                            duration: const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Menu principal
+                            MenuCard(
+                              onRoutinesPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RoutinesScreen(),
+                                  ),
+                                );
+                              },
+                              onCoursesPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const CourseListScreen(),
+                                  ),
+                                );
+                              },
+                              onChallengesPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const ChallengesScreen(),
+                                  ),
+                                );
+                              },
+                              onMembershipPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const MembershipScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Bouton de classement
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const LeaderboardScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.leaderboard),
+                              label: const Text('Voir le classement'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.lightGreen,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ]),
                         ),
                       ),
                     ],
                   ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Défi quotidien
-                DailyChallengeCard(
-                  challenge: challengeProvider.dailyChallenge,
-                  isCompleted: challengeProvider.dailyChallenge != null
-                      ? challengeProvider.isChallengeCompleted(
-                          challengeProvider.dailyChallenge!.id,
-                        )
-                      : false,
-                  onComplete: () async {
-                    if (challengeProvider.dailyChallenge != null) {
-                      await challengeProvider.completeChallenge(
-                        challengeProvider.dailyChallenge!.id,
-                        user.id,
-                      );
-                    }
-                  },
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Menu de navigation
-                MenuCard(
-                  onRoutinesPressed: () {
-                    // Navigation vers l'écran des routines
-                  },
-                  onCoursesPressed: () {
-                    // Navigation vers l'écran des cours
-                  },
-                  onChallengesPressed: () {
-                    // Navigation vers l'écran des défis
-                  },
-                  onMembershipPressed: () {
-                    // Navigation vers l'écran des abonnements
-                  },
-                ),
-              ],
+                );
+              },
             ),
-          );
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 0,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.fitness_center),
+            label: 'Routines',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_available),
+            label: 'Cours',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              // Déjà sur l'écran d'accueil
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RoutinesScreen()),
+              );
+              break;
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CourseListScreen()),
+              );
+              break;
+            case 3:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+              break;
+          }
         },
       ),
     );
   }
-
+  
   // Description textuelle du stade de l'avatar
   String _getAvatarStageDescription(String stage) {
     switch (stage) {
-      case 'mince':
+      case AppConstants.avatarStageThin:
         return "Débutant - Continuez à vous entraîner !";
-      case 'moyen':
+      case AppConstants.avatarStageMedium:
         return "Intermédiaire - Vous progressez bien !";
-      case 'muscle':
+      case AppConstants.avatarStageMuscular:
         return "Avancé - Votre dévouement porte ses fruits !";
       default:
         return "Niveau actuel";
     }
-  }
-
-  // Widget affiché quand l'utilisateur n'est pas connecté
-  Widget _buildLoginPrompt() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.sports_martial_arts,
-              size: 80,
-              color: Colors.blue,
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'Bienvenue sur Sunday Sport Club',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Connectez-vous pour accéder à votre profil, suivre vos progrès et participer aux défis quotidiens.',
-              style: TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text(
-                'Se connecter',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
