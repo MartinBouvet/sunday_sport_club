@@ -38,14 +38,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sunday Sport Club'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Center(
-              child: Text('Bienvenue sur Sunday Sport Club'),
-            ),
+      appBar: AppBar(title: const Text('Sunday Sport Club')),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Center(child: Text('Bienvenue sur Sunday Sport Club')),
     );
   }
 }
