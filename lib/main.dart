@@ -3,7 +3,11 @@ import 'package:provider/provider.dart';
 import 'core/utils/supabase_client.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/challenge_provider.dart';
-import 'presentation/screens/home/home_screen.dart';
+import 'presentation/providers/progress_provider.dart';
+import 'presentation/providers/user_provider.dart';
+import 'presentation/providers/routine_provider.dart';
+import 'presentation/providers/booking_provider.dart';
+import 'presentation/screens/auth/login_screen.dart'; // Import de l'écran de connexion
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -19,7 +23,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +31,10 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ChallengeProvider()),
+        ChangeNotifierProvider(create: (_) => ProgressProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => RoutineProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
       ],
       child: MaterialApp(
         title: 'Sunday Sport Club',
@@ -38,14 +46,15 @@ class MyApp extends StatelessWidget {
           ),
           useMaterial3: true,
           scaffoldBackgroundColor: Colors.white,
-          appBarTheme: AppBarTheme(
+          appBarTheme: const AppBarTheme(
             backgroundColor: Colors.blue,
             foregroundColor: Colors.white,
             elevation: 0,
           ),
         ),
         debugShowCheckedModeBanner: false,
-        home: const HomeScreen(),
+        // Modification: utilisation de LoginScreen comme écran initial
+        home: const LoginScreen(),
       ),
     );
   }
