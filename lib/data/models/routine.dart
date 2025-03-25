@@ -5,8 +5,7 @@ class Routine {
   final String difficulty;
   final int estimatedDurationMinutes;
   final List<String> exerciseIds;
-  final Map<String, dynamic>?
-  exerciseDetails; // Répétitions, sets pour chaque exercice
+  final Map<String, dynamic>? exerciseDetails; // Répétitions, sets pour chaque exercice
   final String createdBy; // ID du coach qui a créé la routine
   final DateTime createdAt;
   final bool isPublic;
@@ -71,8 +70,7 @@ class Routine {
       name: name ?? this.name,
       description: description ?? this.description,
       difficulty: difficulty ?? this.difficulty,
-      estimatedDurationMinutes:
-          estimatedDurationMinutes ?? this.estimatedDurationMinutes,
+      estimatedDurationMinutes: estimatedDurationMinutes ?? this.estimatedDurationMinutes,
       exerciseIds: exerciseIds ?? this.exerciseIds,
       exerciseDetails: exerciseDetails ?? this.exerciseDetails,
       createdBy: createdBy ?? this.createdBy,

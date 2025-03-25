@@ -1,3 +1,4 @@
+// lib/data/models/user.dart
 class User {
   final String id;
   final String email;
@@ -9,17 +10,23 @@ class User {
   final String skinColor;
   final bool isActive;
   final String role;
+  final DateTime? createdAt;
+  final DateTime? lastLogin;
+  
+  // Informations de progression
   final int level;
   final int experiencePoints;
   final String avatarStage;
+  
+  // Statistiques physiques
   final double? weight;
   final double? initialWeight;
   final int endurance;
   final int strength;
+  
+  // Autres informations
   final List<String> achievements;
   final int ranking;
-  final DateTime? createdAt;
-  final DateTime? lastLogin;
 
   User({
     required this.id,
@@ -32,6 +39,8 @@ class User {
     required this.skinColor,
     required this.isActive,
     required this.role,
+    this.createdAt,
+    this.lastLogin,
     required this.level,
     required this.experiencePoints,
     required this.avatarStage,
@@ -39,10 +48,8 @@ class User {
     this.initialWeight,
     required this.endurance,
     required this.strength,
-    required this.achievements,
-    required this.ranking,
-    this.createdAt,
-    this.lastLogin,
+    this.achievements = const [],
+    this.ranking = 0,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -52,14 +59,13 @@ class User {
       firstName: json['first_name'],
       lastName: json['last_name'],
       phone: json['phone'],
-      birthDate:
-          json['birth_date'] != null
-              ? DateTime.parse(json['birth_date'])
-              : null,
+      birthDate: json['birth_date'] != null ? DateTime.parse(json['birth_date']) : null,
       gender: json['gender'] ?? 'homme',
       skinColor: json['skin_color'] ?? 'blanc',
       isActive: json['is_active'] ?? true,
       role: json['role'] ?? 'user',
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
+      lastLogin: json['last_login'] != null ? DateTime.parse(json['last_login']) : null,
       level: json['level'] ?? 1,
       experiencePoints: json['experience_points'] ?? 0,
       avatarStage: json['avatar_stage'] ?? 'mince',
@@ -68,15 +74,9 @@ class User {
       endurance: json['endurance'] ?? 1,
       strength: json['strength'] ?? 1,
       achievements: json['achievements'] != null 
-          ? List<String>.from(json['achievements']) 
+          ? List<String>.from(json['achievements'])
           : [],
       ranking: json['ranking'] ?? 0,
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
-          : null,
-      lastLogin: json['last_login'] != null 
-          ? DateTime.parse(json['last_login']) 
-          : null,
     );
   }
 
@@ -92,6 +92,8 @@ class User {
       'skin_color': skinColor,
       'is_active': isActive,
       'role': role,
+      'created_at': createdAt?.toIso8601String(),
+      'last_login': lastLogin?.toIso8601String(),
       'level': level,
       'experience_points': experiencePoints,
       'avatar_stage': avatarStage,
@@ -101,8 +103,6 @@ class User {
       'strength': strength,
       'achievements': achievements,
       'ranking': ranking,
-      'created_at': createdAt?.toIso8601String(),
-      'last_login': lastLogin?.toIso8601String(),
     };
   }
 
@@ -117,6 +117,8 @@ class User {
     String? skinColor,
     bool? isActive,
     String? role,
+    DateTime? createdAt,
+    DateTime? lastLogin,
     int? level,
     int? experiencePoints,
     String? avatarStage,
@@ -126,8 +128,6 @@ class User {
     int? strength,
     List<String>? achievements,
     int? ranking,
-    DateTime? createdAt,
-    DateTime? lastLogin,
   }) {
     return User(
       id: id ?? this.id,
@@ -140,6 +140,8 @@ class User {
       skinColor: skinColor ?? this.skinColor,
       isActive: isActive ?? this.isActive,
       role: role ?? this.role,
+      createdAt: createdAt ?? this.createdAt,
+      lastLogin: lastLogin ?? this.lastLogin,
       level: level ?? this.level,
       experiencePoints: experiencePoints ?? this.experiencePoints,
       avatarStage: avatarStage ?? this.avatarStage,
@@ -149,8 +151,17 @@ class User {
       strength: strength ?? this.strength,
       achievements: achievements ?? this.achievements,
       ranking: ranking ?? this.ranking,
-      createdAt: createdAt ?? this.createdAt,
-      lastLogin: lastLogin ?? this.lastLogin,
     );
   }
 }
+
+// lib/data/models/membership_card.dart
+// lib/data/models/course.dart
+// lib/data/models/booking.dart
+// lib/data/models/exercise.dart
+// lib/data/models/routine.dart
+// lib/data/models/user_routine.dart
+// lib/data/models/daily_challenge.dart
+// lib/data/models/user_challenge.dart
+// lib/data/models/progress_tracking.dart
+// lib/data/models/payment.dart

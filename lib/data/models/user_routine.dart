@@ -28,10 +28,7 @@ class UserRoutine {
       routineId: json['routine_id'],
       assignedDate: DateTime.parse(json['assigned_date']),
       status: json['status'],
-      completionDate:
-          json['completion_date'] != null
-              ? DateTime.parse(json['completion_date'])
-              : null,
+      completionDate: json['completion_date'] != null ? DateTime.parse(json['completion_date']) : null,
       validatedBy: json['validated_by'],
       experienceGained: json['experience_gained'],
       feedback: json['feedback'],

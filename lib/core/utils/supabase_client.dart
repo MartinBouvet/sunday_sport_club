@@ -53,9 +53,9 @@ class SupabaseClientService {
       return List<Map<String, dynamic>>.from(response);
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -91,9 +91,9 @@ class SupabaseClientService {
         throw DatabaseException.notFound(entity: table);
       }
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -120,12 +120,12 @@ class SupabaseClientService {
           .insert(data)
           .select(returning ? '*' : null);
       
-      return returning ? response.first : null;
+      return returning && response.isNotEmpty ? response.first : null;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -164,9 +164,9 @@ class SupabaseClientService {
       return returning ? response.first : null;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       if (e is DatabaseException) rethrow;
@@ -200,12 +200,12 @@ class SupabaseClientService {
       
       final response = await query.select(returning ? '*' : null);
       
-      return returning ? response.first : null;
+      return returning && response.isNotEmpty ? response.first : null;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -239,12 +239,12 @@ class SupabaseClientService {
         throw DatabaseException.notFound(entity: table);
       }
       
-      return returning ? response.first : null;
+      return returning && response.isNotEmpty ? response.first : null;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       if (e is DatabaseException) rethrow;
@@ -274,9 +274,9 @@ class SupabaseClientService {
       return response;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, procedure: functionName);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -312,9 +312,9 @@ class SupabaseClientService {
       return _client.storage.from(bucket).getPublicUrl(fileName);
     } on StorageException catch (e) {
       throw _handleStorageException(e, bucket: bucket);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw StorageException(
@@ -338,9 +338,9 @@ class SupabaseClientService {
       return data;
     } on StorageException catch (e) {
       throw _handleStorageException(e, bucket: bucket);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw StorageException(
@@ -363,9 +363,9 @@ class SupabaseClientService {
       await _client.storage.from(bucket).remove([path]);
     } on StorageException catch (e) {
       throw _handleStorageException(e, bucket: bucket);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw StorageException(
@@ -414,9 +414,9 @@ class SupabaseClientService {
       return (response.count ?? 0) > 0;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -448,9 +448,9 @@ class SupabaseClientService {
       return response.count ?? 0;
     } on PostgrestException catch (e) {
       throw _handlePostgrestException(e, table: table);
-    } on SocketException catch (e) {
+    } on SocketException {
       throw NetworkException.noConnection();
-    } on TimeoutException catch (e) {
+    } on TimeoutException {
       throw NetworkException.timeout();
     } catch (e) {
       throw DatabaseException(
@@ -466,7 +466,7 @@ class SupabaseClientService {
   /// [table] : Nom de la table
   /// [event] : Type d'événement à écouter (INSERT, UPDATE, DELETE, *)
   /// [callback] : Fonction de rappel appelée à chaque événement
-  /// Retourne un id de souscription à utiliser pour se désabonner
+  /// Retourne un canal de temps réel à utiliser pour se désabonner
   RealtimeChannel subscribe({
     required String table,
     String event = '*',

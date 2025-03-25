@@ -24,10 +24,7 @@ class UserChallenge {
       challengeId: json['challenge_id'],
       assignedDate: DateTime.parse(json['assigned_date']),
       status: json['status'],
-      completionDate:
-          json['completion_date'] != null
-              ? DateTime.parse(json['completion_date'])
-              : null,
+      completionDate: json['completion_date'] != null ? DateTime.parse(json['completion_date']) : null,
       experienceGained: json['experience_gained'],
     );
   }
