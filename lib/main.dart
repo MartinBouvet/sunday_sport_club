@@ -8,5 +8,37 @@ void main() async {
   // Initialiser Supabase
   await initializeSupabase();
 
-  runApp(MyApp());
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Sunday Sport Club',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      home: const HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sunday Sport Club'),
+      ),
+      body: Center(
+        child: Text('Bienvenue sur Sunday Sport Club'),
+      ),
+    );
+  }
 }
