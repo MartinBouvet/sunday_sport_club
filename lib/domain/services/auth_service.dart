@@ -1,7 +1,8 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase_auth;
 import '../../data/datasources/supabase/supabase_auth_datasource.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/models/user.dart';
+import '../../core/utils/supabase_client.dart';
 
 class AuthService {
   final SupabaseAuthDatasource _authDatasource = SupabaseAuthDatasource();
@@ -12,6 +13,31 @@ class AuthService {
 
   // Check if user is logged in
   bool get isLoggedIn => _authDatasource.currentUser != null;
+
+  // Check if the current session is valid
+  Future<bool> isSessionValid() async {
+    try {
+      // Check if there's a current session
+      final session = supabase.auth.currentSession;
+      if (session == null) {
+        return false;
+      }
+      
+      // Check if token is expired
+      final now = DateTime.now().millisecondsSinceEpoch / 1000;
+      if (session.expiresAt != null && session.expiresAt! < now) {
+        return false;
+      }
+      
+      // Optional: Perform a lightweight API call to verify the token is still accepted
+      await supabase.auth.getUser();
+      
+      return true;
+    } catch (e) {
+      // If any error occurs, consider the session invalid
+      return false;
+    }
+  }
 
   // Get the current authenticated user's data
   Future<User?> getCurrentUser() async {
@@ -80,13 +106,23 @@ class AuthService {
 
   // Update user password
   Future<void> updatePassword(String newPassword) async {
-    // Implementation depends on Supabase's password update mechanism
-    // You may need to add this method to your SupabaseAuthDatasource
+    try {
+      await supabase.auth.updateUser(
+        supabase_auth.UserAttributes(
+          password: newPassword,
+        ),
+      );
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // Request password reset email
   Future<void> resetPassword(String email) async {
-    // Implementation depends on Supabase's password reset mechanism
-    // You may need to add this method to your SupabaseAuthDatasource
+    try {
+      await supabase.auth.resetPasswordForEmail(email);
+    } catch (e) {
+      rethrow;
+    }
   }
 }
