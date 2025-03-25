@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/models/user.dart' as app_models;
 import '../../core/utils/supabase_client.dart';
