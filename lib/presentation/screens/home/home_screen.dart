@@ -27,7 +27,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _loadInitialData() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final challengeProvider = Provider.of<ChallengeProvider>(context, listen: false);
+    final challengeProvider = Provider.of<ChallengeProvider>(
+      context,
+      listen: false,
+    );
 
     if (authProvider.currentUser != null) {
       challengeProvider.fetchDailyChallenge();
@@ -35,9 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _navigateToScreen(Widget screen) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
@@ -104,11 +105,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Daily Challenge Card
                 DailyChallengeCard(
                   challenge: challengeProvider.dailyChallenge,
-                  isCompleted: challengeProvider.dailyChallenge != null 
-                      ? challengeProvider.isChallengeCompleted(
-                          challengeProvider.dailyChallenge!.id
-                        ) 
-                      : false,
+                  isCompleted:
+                      challengeProvider.dailyChallenge != null
+                          ? challengeProvider.isChallengeCompleted(
+                            challengeProvider.dailyChallenge!.id,
+                          )
+                          : false,
                   onComplete: () {
                     // TODO: Implement challenge completion logic
                   },
@@ -146,19 +148,13 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const Text(
             'Bienvenue sur Sunday Sport Club',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
           const Text(
             'Connectez-vous pour commencer votre parcours sportif',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
