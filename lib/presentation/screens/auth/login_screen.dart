@@ -7,6 +7,7 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import 'signup_screen.dart';
 import 'password_reset_screen.dart';
+import '../home/home_screen.dart'; // Import de l'écran d'accueil
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key}); 
@@ -42,9 +43,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      // Si la connexion réussit, retourner à l'écran d'accueil
+      // Si la connexion réussit, naviguer vers l'écran d'accueil
       if (success && mounted) {
-        Navigator.of(context).pop();
+        // Remplacer la navigation précédente (pop) par une redirection vers HomeScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
       }
     }
   }
