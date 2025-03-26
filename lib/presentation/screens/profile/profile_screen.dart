@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sunday_sport_club/domain/services/course_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/avatar_display.dart';
@@ -8,6 +9,9 @@ import '../../../core/constants/app_constants.dart';
 import '../home/avatar_customization_screen.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
+import '../home/home_screen.dart';
+import '../routines/routines_screen.dart';
+import '../courses/course_list_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -101,6 +105,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
             tooltip: 'Paramètres',
           ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 3, // Onglet actif (Routines)
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.fitness_center),
+            label: 'Routines',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_available),
+            label: 'Cours',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+              );
+              break;
+            case 1:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const RoutinesScreen()),
+              );
+              break;
+            case 2:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const CourseListScreen()),
+              );
+              break;
+            case 3:
+              break;
+          }
+        },
       ),
       body: _isLoading
           ? const LoadingIndicator(

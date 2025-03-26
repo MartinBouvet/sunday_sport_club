@@ -7,6 +7,9 @@ import '../../../data/models/user_routine.dart';
 import '../../providers/routine_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'routine_detail_screen.dart';
+import '../profile/profile_screen.dart';
+import '../courses/course_list_screen.dart';
+import '../home/home_screen.dart';
 
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
@@ -136,6 +139,56 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         },
         tooltip: 'Rafraîchir',
         child: const Icon(Icons.refresh),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 1, // Onglet actif (Routines)
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Accueil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.fitness_center),
+            label: 'Routines',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.event_available),
+            label: 'Cours',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+              );
+              break;
+            case 1:
+              // Déjà sur l'écran routines
+              break;
+            case 2:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const CourseListScreen()),
+              );
+              break;
+            case 3:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+              break;
+          }
+        },
       ),
     );
   }
@@ -403,6 +456,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return'${date.day}/${date.month}/${date.year}';
   }
 }
