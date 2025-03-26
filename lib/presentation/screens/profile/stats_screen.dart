@@ -5,13 +5,12 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/error_display.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/progress_provider.dart';
 import '../../providers/user_provider.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({Key? key}) : super(key: key);
+  const StatsScreen({super.key});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -177,7 +176,6 @@ class _StatsScreenState extends State<StatsScreen> with SingleTickerProviderStat
       if (authProvider.currentUser != null) {
         // Mise à jour des statistiques
         await userProvider.updateUserProperties(
-          userId: authProvider.currentUser!.id,
           weight: weight,
           endurance: endurance,
           strength: strength,
@@ -369,7 +367,7 @@ class _StatsScreenState extends State<StatsScreen> with SingleTickerProviderStat
                               : null,
                         ),
                   
-                  const SizedBox(height: _isEditing ? 16 : 12),
+                  SizedBox(height: _isEditing ? 16 : 12),
                   
                   // Endurance
                   _isEditing
@@ -391,7 +389,7 @@ class _StatsScreenState extends State<StatsScreen> with SingleTickerProviderStat
                           progressColor: Colors.orange,
                         ),
                   
-                  const SizedBox(height: _isEditing ? 16 : 12),
+                  SizedBox(height: _isEditing ? 16 : 12),
                   
                   // Force
                   _isEditing

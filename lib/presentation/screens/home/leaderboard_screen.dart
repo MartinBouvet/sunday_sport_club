@@ -349,8 +349,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                         itemBuilder: (context, index) {
                           final user = _leaderboardData[index];
                           final rank = index + 1;
-                          final isCurrentUser = authProvider.currentUser != null && 
-                              user['id'] == authProvider.currentUser!.id;
+                          final isCurrentUser = Provider.of<AuthProvider>(context, listen: false).currentUser != null && 
+                              user['id'] == Provider.of<AuthProvider>(context, listen: false).currentUser!.id;
                           
                           return InkWell(
                             onTap: () {
