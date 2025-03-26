@@ -9,7 +9,7 @@ import '../../providers/user_provider.dart';
 import '../profile/profile_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
-  const LeaderboardScreen({Key? key}) : super(key: key);
+  const LeaderboardScreen({super.key});
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();

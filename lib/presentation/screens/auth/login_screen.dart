@@ -4,7 +4,7 @@ import '../../providers/auth_provider.dart';
 import 'signup_screen.dart';
 import 'password_reset_screen.dart';
 import '../home/home_screen.dart';
-import '../../../core/widgets/ app_button.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/loading_indicator.dart';

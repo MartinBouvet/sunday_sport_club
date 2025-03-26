@@ -41,6 +41,24 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Rafraîchit les données utilisateur depuis le serveur
+  /// Utile après des mises à jour de profil ou autres modifications
+  Future<void> refreshUserData() async {
+    if (!isAuthenticated) return;
+    
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      await _loadUserData();
+    } catch (e) {
+      _errorMessage = "Erreur lors du rafraîchissement des données: ${e.toString()}";
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
