@@ -274,12 +274,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 );
                               },
                               onCoursesPressed: () {
-                                /*Navigator.push(
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const CourseListScreen(),
                                   ),
-                                );*/
+                                );
                               },
                               onChallengesPressed: () {
                                 Navigator.push(
@@ -290,12 +290,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 );
                               },
                               onMembershipPressed: () {
-                                /*Navigator.push(
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const MembershipScreen(),
                                   ),
-                                );*/
+                                );
                               },
                             ),
                             
@@ -365,12 +365,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(builder: (context) => const RoutinesScreen()),
               );
               break;
-           /* case 2:
+            case 2:
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const CourseListScreen()),
               );
-              break;*/
+              break;
             case 3:
               Navigator.push(
                 context,
