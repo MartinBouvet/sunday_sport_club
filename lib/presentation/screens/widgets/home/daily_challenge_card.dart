@@ -17,11 +17,11 @@ class DailyChallengeCard extends StatelessWidget {
 
   /// Constructeur du widget DailyChallengeCard
   const DailyChallengeCard({
-    Key? key,
+    super.key,
     required this.challenge,
     required this.isCompleted,
     required this.onComplete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

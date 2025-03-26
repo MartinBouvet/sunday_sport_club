@@ -51,6 +51,7 @@ class RoutineProvider extends ChangeNotifier {
       );
     }
   }
+  
 
   Future<Exercise?> getExerciseById(String exerciseId) async {
     if (_exercisesCache.containsKey(exerciseId)) {
@@ -70,6 +71,20 @@ class RoutineProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  Future<Routine?> getRoutineById(String routineId) async {
+  _setLoading(true);
+  _clearMessages();
+
+  try {
+    final routine = await _routineRepository.getRoutine(routineId);
+    _setLoading(false);
+    return routine;
+  } catch (e) {
+    _setError('Erreur lors du chargement de la routine: ${e.toString()}');
+    return null;
+  }
+}
 
   Future<bool> completeUserRoutine(String userRoutineId) async {
     _setLoading(true);

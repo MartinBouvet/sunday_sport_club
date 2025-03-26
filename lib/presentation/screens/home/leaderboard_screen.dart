@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import '../../../core/widgets/avatar_display.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
 import '../profile/profile_screen.dart';
 
 class LeaderboardScreen extends StatefulWidget {
@@ -23,6 +22,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   
   // Position de l'utilisateur actuel
   int _currentUserRank = 0;
+  // ignore: unused_field
   bool _showCurrentUserHighlight = false;
 
   @override
@@ -63,7 +63,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       _isLoading = true;
     });
 
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
     try {

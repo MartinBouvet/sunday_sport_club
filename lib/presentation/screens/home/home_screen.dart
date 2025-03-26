@@ -266,12 +266,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             // Menu principal
                             MenuCard(
                               onRoutinesPressed: () {
-                                /*Navigator.push(
+                                Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const RoutinesScreen(),
                                   ),
-                                );*/
+                                );
                               },
                               onCoursesPressed: () {
                                 /*Navigator.push(
@@ -359,13 +359,13 @@ class _HomeScreenState extends State<HomeScreen> {
             case 0:
               // Déjà sur l'écran d'accueil
               break;
-            /*case 1:
+            case 1:
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const RoutinesScreen()),
               );
               break;
-            case 2:
+           /* case 2:
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const CourseListScreen()),
