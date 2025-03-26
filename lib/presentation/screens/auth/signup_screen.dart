@@ -91,7 +91,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   // Logo et titre
                   Center(
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/logo1.png',
                       height: 100,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(

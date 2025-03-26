@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/avatar_display.dart';
 import '../../../core/widgets/loading_indicator.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../profile/profile_screen.dart';

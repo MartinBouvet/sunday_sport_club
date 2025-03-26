@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
-import '../../providers/progress_provider.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/avatar_display.dart';
 import '../../../core/widgets/loading_indicator.dart';

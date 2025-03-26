@@ -590,7 +590,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       applicationName: AppConstants.appName,
       applicationVersion: 'Version ${AppConstants.appVersion}',
       applicationIcon: Image.asset(
-        'assets/images/logo.png',
+        'assets/images/logo1.png',
         width: 50,
         height: 50,
         errorBuilder: (context, error, stackTrace) {

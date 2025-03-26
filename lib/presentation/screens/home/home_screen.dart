@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/logo.png',
+                                'assets/images/logo1.png',
                                 height: 36,
                                 errorBuilder: (context, error, stackTrace) => const SizedBox(),
                               ),
@@ -264,7 +264,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 24),
                             
                             // Menu principal
-                            MenuCard(
+                            /*MenuCard(
                               onRoutinesPressed: () {
                                 Navigator.push(
                                   context,
@@ -297,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                 );
                               },
-                            ),
+                            ),*/
                             
                             const SizedBox(height: 24),
                             
@@ -359,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
             case 0:
               // Déjà sur l'écran d'accueil
               break;
-            case 1:
+            /*case 1:
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const RoutinesScreen()),
@@ -370,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 MaterialPageRoute(builder: (context) => const CourseListScreen()),
               );
-              break;
+              break;*/
             case 3:
               Navigator.push(
                 context,
