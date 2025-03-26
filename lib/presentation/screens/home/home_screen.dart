@@ -264,22 +264,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 24),
                             
                             // Menu principal
-                            /*MenuCard(
+                            MenuCard(
                               onRoutinesPressed: () {
-                                Navigator.push(
+                                /*Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const RoutinesScreen(),
                                   ),
-                                );
+                                );*/
                               },
                               onCoursesPressed: () {
-                                Navigator.push(
+                                /*Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const CourseListScreen(),
                                   ),
-                                );
+                                );*/
                               },
                               onChallengesPressed: () {
                                 Navigator.push(
@@ -290,14 +290,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 );
                               },
                               onMembershipPressed: () {
-                                Navigator.push(
+                                /*Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => const MembershipScreen(),
                                   ),
-                                );
+                                );*/
                               },
-                            ),*/
+                            ),
                             
                             const SizedBox(height: 24),
                             

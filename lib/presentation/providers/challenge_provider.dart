@@ -17,6 +17,20 @@ class ChallengeProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
 
+Future<DailyChallenge?> getChallenge(String challengeId) async {
+  _setLoading(true);
+  _clearError();
+  
+  try {
+    final challenge = await _challengeRepository.getChallenge(challengeId);
+    _setLoading(false);
+    return challenge;
+  } catch (e) {
+    _setError('Erreur lors du chargement du défi: ${e.toString()}');
+    return null;
+  }
+}
+
   Future<void> fetchDailyChallenge() async {
     _setLoading(true);
     _clearError();
