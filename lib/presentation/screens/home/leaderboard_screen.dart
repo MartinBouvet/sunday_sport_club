@@ -1,10 +1,73 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/avatar_display.dart';
 import '../../../core/widgets/loading_indicator.dart';
+import '../../../core/utils/supabase_client.dart';
 import '../../providers/auth_provider.dart';
 import '../profile/profile_screen.dart';
+
+/// Service pour récupérer les données du classement
+class LeaderboardService {
+  // Méthode pour récupérer les utilisateurs triés
+  Future<List<Map<String, dynamic>>> getLeaderboardData(String filter, String timeRange) async {
+    try {
+      // Requête à Supabase pour récupérer les utilisateurs triés
+      dynamic response;
+      
+      switch (filter) {
+        case 'xp':
+          response = await supabase
+              .from('profiles')
+              .select()
+              .order('experience_points', ascending: false)
+              .limit(100);
+          break;
+        case 'level':
+          response = await supabase
+              .from('profiles')
+              .select()
+              .order('level', ascending: false)
+              .limit(100);
+          break;
+        case 'strength':
+          response = await supabase
+              .from('profiles')
+              .select()
+              .order('strength', ascending: false)
+              .limit(100);
+          break;
+        case 'endurance':
+          response = await supabase
+              .from('profiles')
+              .select()
+              .order('endurance', ascending: false)
+              .limit(100);
+          break;
+        default:
+          response = await supabase
+              .from('profiles')
+              .select()
+              .order('experience_points', ascending: false)
+              .limit(100);
+      }
+
+      // Convertir les données en List<Map<String, dynamic>>
+      if (response is List) {
+        return response.map((item) => item as Map<String, dynamic>).toList();
+      } else if (response is PostgrestResponse) {
+        return (response.data as List).map((item) => item as Map<String, dynamic>).toList();
+      } else {
+        print('Type de réponse inattendu: ${response.runtimeType}');
+        return [];
+      }
+    } catch (e) {
+      print('Erreur lors de la récupération des données de classement: $e');
+      return [];
+    }
+  }
+}
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -22,8 +85,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   
   // Position de l'utilisateur actuel
   int _currentUserRank = 0;
-  // ignore: unused_field
-  bool _showCurrentUserHighlight = false;
+  
+  // Service de classement
+  final LeaderboardService _leaderboardService = LeaderboardService();
 
   @override
   void initState() {
@@ -63,39 +127,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       _isLoading = true;
     });
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = provider.Provider.of<AuthProvider>(context, listen: false);
     
     try {
-      // Dans une implémentation réelle, nous chargerions les données depuis le backend
-      // Pour cette démo, nous allons simuler les données
-      
-      // Simuler un délai réseau
-      await Future.delayed(const Duration(milliseconds: 800));
-      
-      // Simuler les données
-      List<Map<String, dynamic>> dummyData = _generateLeaderboardData();
-      
-      // Trier selon le filtre
-      dummyData.sort((a, b) {
-        switch (_filter) {
-          case 'xp':
-            return (b['experiencePoints'] as int).compareTo(a['experiencePoints'] as int);
-          case 'level':
-            return (b['level'] as int).compareTo(a['level'] as int);
-          case 'strength':
-            return (b['strength'] as int).compareTo(a['strength'] as int);
-          case 'endurance':
-            return (b['endurance'] as int).compareTo(a['endurance'] as int);
-          default:
-            return (b['experiencePoints'] as int).compareTo(a['experiencePoints'] as int);
-        }
-      });
+      // Charger les données depuis Supabase
+      final leaderboardData = await _leaderboardService.getLeaderboardData(_filter, _timeRange);
       
       // Trouver le rang de l'utilisateur actuel
       if (authProvider.currentUser != null) {
         final userId = authProvider.currentUser!.id;
-        for (int i = 0; i < dummyData.length; i++) {
-          if (dummyData[i]['id'] == userId) {
+        for (int i = 0; i < leaderboardData.length; i++) {
+          if (leaderboardData[i]['id'] == userId) {
             _currentUserRank = i + 1;
             break;
           }
@@ -103,7 +145,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       }
       
       setState(() {
-        _leaderboardData = dummyData;
+        _leaderboardData = leaderboardData;
         _isLoading = false;
       });
       
@@ -121,143 +163,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
         );
       }
     }
-  }
-
-  // Génère des données de classement fictives
-  List<Map<String, dynamic>> _generateLeaderboardData() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final currentUser = authProvider.currentUser;
-    
-    // Créer une liste d'utilisateurs fictifs
-    List<Map<String, dynamic>> users = [
-      {
-        'id': 'user1',
-        'firstName': 'Thomas',
-        'lastName': 'D.',
-        'gender': 'homme',
-        'skinColor': 'blanc',
-        'avatarStage': 'muscle',
-        'level': 42,
-        'experiencePoints': 4250,
-        'strength': 85,
-        'endurance': 78,
-      },
-      {
-        'id': 'user2',
-        'firstName': 'Sophie',
-        'lastName': 'M.',
-        'gender': 'femme',
-        'skinColor': 'blanc',
-        'avatarStage': 'muscle',
-        'level': 38,
-        'experiencePoints': 3820,
-        'strength': 72,
-        'endurance': 90,
-      },
-      {
-        'id': 'user3',
-        'firstName': 'Karim',
-        'lastName': 'B.',
-        'gender': 'homme',
-        'skinColor': 'metisse',
-        'avatarStage': 'moyen',
-        'level': 25,
-        'experiencePoints': 2540,
-        'strength': 65,
-        'endurance': 60,
-      },
-      {
-        'id': 'user4',
-        'firstName': 'Léa',
-        'lastName': 'T.',
-        'gender': 'femme',
-        'skinColor': 'metisse',
-        'avatarStage': 'moyen',
-        'level': 18,
-        'experiencePoints': 1830,
-        'strength': 45,
-        'endurance': 70,
-      },
-      {
-        'id': 'user5',
-        'firstName': 'Maxime',
-        'lastName': 'P.',
-        'gender': 'homme',
-        'skinColor': 'blanc',
-        'avatarStage': 'mince',
-        'level': 12,
-        'experiencePoints': 1210,
-        'strength': 40,
-        'endurance': 35,
-      },
-      {
-        'id': 'user6',
-        'firstName': 'Nadia',
-        'lastName': 'K.',
-        'gender': 'femme',
-        'skinColor': 'noir',
-        'avatarStage': 'muscle',
-        'level': 31,
-        'experiencePoints': 3150,
-        'strength': 68,
-        'endurance': 75,
-      },
-      {
-        'id': 'user7',
-        'firstName': 'Antoine',
-        'lastName': 'G.',
-        'gender': 'homme',
-        'skinColor': 'blanc',
-        'avatarStage': 'moyen',
-        'level': 22,
-        'experiencePoints': 2210,
-        'strength': 55,
-        'endurance': 52,
-      },
-      {
-        'id': 'user8',
-        'firstName': 'Emma',
-        'lastName': 'R.',
-        'gender': 'femme',
-        'skinColor': 'blanc',
-        'avatarStage': 'moyen',
-        'level': 27,
-        'experiencePoints': 2710,
-        'strength': 60,
-        'endurance': 63,
-      },
-    ];
-    
-    // Ajouter l'utilisateur actuel s'il est connecté
-    if (currentUser != null) {
-      users.add({
-        'id': currentUser.id,
-        'firstName': currentUser.firstName,
-        'lastName': currentUser.lastName,
-        'gender': currentUser.gender,
-        'skinColor': currentUser.skinColor,
-        'avatarStage': currentUser.avatarStage,
-        'level': currentUser.level,
-        'experiencePoints': currentUser.experiencePoints,
-        'strength': currentUser.strength,
-        'endurance': currentUser.endurance,
-      });
-    }
-    
-    // Ajouter des variations en fonction de la période sélectionnée
-    if (_timeRange == 'weekly') {
-      // Simuler des données pour la semaine (moins de points)
-      for (var user in users) {
-        user['experiencePoints'] = (user['experiencePoints'] as int) ~/ 10;
-      }
-    } else if (_timeRange == 'monthly') {
-      // Simuler des données pour le mois (environ un tiers des points totaux)
-      for (var user in users) {
-        user['experiencePoints'] = (user['experiencePoints'] as int) ~/ 3;
-      }
-    }
-    
-    return users;
   }
 
   @override
@@ -278,81 +183,82 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       ),
       body: _isLoading
           ? const LoadingIndicator(center: true, message: 'Chargement du classement...')
-          : Column(
-              children: [
-                // Options de filtrage
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Classer par :',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildFilterChip('Points XP', 'xp'),
-                            const SizedBox(width: 8),
-                            _buildFilterChip('Niveau', 'level'),
-                            const SizedBox(width: 8),
-                            _buildFilterChip('Force', 'strength'),
-                            const SizedBox(width: 8),
-                            _buildFilterChip('Endurance', 'endurance'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+          : provider.Consumer<AuthProvider>(
+              builder: (context, authProvider, _) {
+                final user = authProvider.currentUser;
                 
-                // En-têtes du tableau
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    border: Border(
-                      bottom: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
+                return Column(
+                  children: [
+                    // Options de filtrage
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Classer par :',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildFilterChip('Points XP', 'xp'),
+                                const SizedBox(width: 8),
+                                _buildFilterChip('Niveau', 'level'),
+                                const SizedBox(width: 8),
+                                _buildFilterChip('Force', 'strength'),
+                                const SizedBox(width: 8),
+                                _buildFilterChip('Endurance', 'endurance'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 40, child: Text('Rang', style: TextStyle(fontWeight: FontWeight.bold))),
-                      const SizedBox(width: 8),
-                      const Expanded(child: Text('Membre', style: TextStyle(fontWeight: FontWeight.bold))),
-                      SizedBox(
-                        width: 80,
-                        child: Text(
-                          _getFilterLabel(),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
+                    
+                    // En-têtes du tableau
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.1),
+                        border: Border(
+                          bottom: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                
-                // Liste des utilisateurs
-                Expanded(
-                  child: Stack(
-                    children: [
-                      ListView.builder(
+                      child: Row(
+                        children: [
+                          const SizedBox(width: 40, child: Text('Rang', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const SizedBox(width: 8),
+                          const Expanded(child: Text('Membre', style: TextStyle(fontWeight: FontWeight.bold))),
+                          SizedBox(
+                            width: 80,
+                            child: Text(
+                              _getFilterLabel(),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    // Liste des utilisateurs
+                    Expanded(
+                      child: ListView.builder(
                         itemCount: _leaderboardData.length,
                         itemBuilder: (context, index) {
-                          final user = _leaderboardData[index];
+                          final userData = _leaderboardData[index];
                           final rank = index + 1;
-                          final isCurrentUser = Provider.of<AuthProvider>(context, listen: false).currentUser != null && 
-                              user['id'] == Provider.of<AuthProvider>(context, listen: false).currentUser!.id;
+                          final isCurrentUser = user != null && userData['id'] == user.id;
                           
                           return InkWell(
                             onTap: () {
-                              // Ouvrir le profil de l'utilisateur (sauf pour les démos)
+                              // Ouvrir le profil de l'utilisateur
                               if (isCurrentUser) {
                                 Navigator.push(
                                   context,
@@ -380,9 +286,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                   const SizedBox(width: 8),
                                   // Avatar
                                   AvatarDisplay(
-                                    gender: user['gender'],
-                                    skinColor: user['skinColor'],
-                                    stage: user['avatarStage'],
+                                    gender: userData['gender'] ?? 'homme',
+                                    skinColor: userData['skin_color'] ?? 'blanc',
+                                    stage: userData['avatar_stage'] ?? 'mince',
                                     size: 40,
                                     showBorder: rank <= 3,
                                     borderColor: rank <= 3 ? _getMedalColor(rank) : null,
@@ -396,7 +302,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                         Row(
                                           children: [
                                             Text(
-                                              '${user['firstName']} ${user['lastName']}',
+                                              '${userData['first_name'] ?? 'Non'} ${userData['last_name'] ?? 'Défini'}',
                                               style: TextStyle(
                                                 fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
                                                 color: isCurrentUser ? theme.colorScheme.primary : null,
@@ -421,7 +327,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                           ],
                                         ),
                                         Text(
-                                          'Niveau ${user['level']}',
+                                          'Niveau ${userData['level'] ?? 1}',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[600],
@@ -436,7 +342,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                     child: Column(
                                       children: [
                                         Text(
-                                          _getFormattedValue(user),
+                                          _getFormattedValue(userData),
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: isCurrentUser ? theme.colorScheme.primary : null,
@@ -445,7 +351,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                         ),
                                         if (_filter != 'level')
                                           Text(
-                                            _getSecondaryValue(user),
+                                            _getSecondaryValue(userData),
                                             style: const TextStyle(
                                               fontSize: 12,
                                               color: Colors.grey,
@@ -461,103 +367,69 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                           );
                         },
                       ),
-                      
-                      // Bouton pour aller à la position de l'utilisateur
-                      if (_currentUserRank > 0 && _leaderboardData.length > 10)
-                        Positioned(
-                          bottom: 16,
-                          right: 16,
-                          child: FloatingActionButton(
-                            heroTag: 'findMe',
-                            onPressed: () {
-                              setState(() {
-                                _showCurrentUserHighlight = true;
-                              });
-                              // Faire défiler jusqu'à la position de l'utilisateur
-                              // Dans une implémentation réelle, vous utiliseriez un ScrollController
-                              
-                              // Désactiver la surbrillance après 2 secondes
-                              Future.delayed(const Duration(seconds: 2), () {
-                                if (mounted) {
-                                  setState(() {
-                                    _showCurrentUserHighlight = false;
-                                  });
-                                }
-                              });
-                            },
-                            child: const Icon(Icons.person_search),
-                            tooltip: 'Trouver ma position',
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                
-                // Statistiques de l'utilisateur actuel
-                Consumer<AuthProvider>(
-                  builder: (context, authProvider, _) {
-                    final currentUser = authProvider.currentUser;
-                    if (currentUser == null) return const SizedBox.shrink();
+                    ),
                     
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.1),
-                        border: Border(
-                          top: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
+                    // Statistiques de l'utilisateur actuel
+                    if (user != null)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          border: Border(
+                            top: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                AvatarDisplay(
+                                  gender: user.gender,
+                                  skinColor: user.skinColor,
+                                  stage: user.avatarStage,
+                                  size: 50,
+                                  showBorder: true,
+                                  borderColor: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Votre position : ${_currentUserRank}${_getOrdinalSuffix(_currentUserRank)}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${user.firstName} ${user.lastName} - Niveau ${user.level}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                  ],
+                                )
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStatBox('XP', '${user.experiencePoints}', Icons.auto_awesome),
+                                _buildStatBox('Force', '${user.strength}', Icons.fitness_center),
+                                _buildStatBox('Endurance', '${user.endurance}', Icons.speed),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              AvatarDisplay(
-                                gender: currentUser.gender,
-                                skinColor: currentUser.skinColor,
-                                stage: currentUser.avatarStage,
-                                size: 50,
-                                showBorder: true,
-                                borderColor: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Votre position : ${_currentUserRank}${_getOrdinalSuffix(_currentUserRank)}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${currentUser.firstName} ${currentUser.lastName} - Niveau ${currentUser.level}',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildStatBox('XP', '${currentUser.experiencePoints}', Icons.auto_awesome),
-                              _buildStatBox('Force', '${currentUser.strength}', Icons.fitness_center),
-                              _buildStatBox('Endurance', '${currentUser.endurance}', Icons.speed),
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ],
+                  ],
+                );
+              },
             ),
     );
   }
@@ -568,7 +440,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     
     return ChoiceChip(
       label: Text(label),
-      selected: isSelected,
+      selected:
+      isSelected,
       onSelected: (selected) {
         if (selected) {
           setState(() {
@@ -647,15 +520,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   String _getFormattedValue(Map<String, dynamic> user) {
     switch (_filter) {
       case 'xp':
-        return NumberFormat.compact().format(user['experiencePoints']);
+        return NumberFormat.compact().format(user['experience_points'] ?? 0);
       case 'level':
-        return 'Nv. ${user['level']}';
+        return 'Nv. ${user['level'] ?? 1}';
       case 'strength':
-        return '${user['strength']}';
+        return '${user['strength'] ?? 0}';
       case 'endurance':
-        return '${user['endurance']}';
+        return '${user['endurance'] ?? 0}';
       default:
-        return '${user['experiencePoints']}';
+        return '${user['experience_points'] ?? 0}';
     }
   }
 
@@ -663,7 +536,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
   String _getSecondaryValue(Map<String, dynamic> user) {
     switch (_filter) {
       case 'xp':
-        return 'Nv. ${user['level']}';
+        return 'Nv. ${user['level'] ?? 1}';
       case 'strength':
         return '$_timeRange';
       case 'endurance':
