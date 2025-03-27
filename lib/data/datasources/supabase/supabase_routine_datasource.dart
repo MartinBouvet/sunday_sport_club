@@ -6,7 +6,8 @@ class SupabaseRoutineDatasource {
 
   Future<List<Map<String, dynamic>>> getAllRoutines() async {
     final response = await _client.from('routines').select();
-    return response;
+    // Conversion explicite pour assurer le bon type
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<Map<String, dynamic>> getRoutine(String routineId) async {
@@ -37,9 +38,11 @@ class SupabaseRoutineDatasource {
     final response = await _client
         .from('user_routines')
         .select('*, routines(*)')
-        .eq('user_id', userId)
+        .eq('profile_id', userId)
         .order('assigned_date', ascending: false);
-    return response;
+    
+    // Correction: Conversion explicite du résultat en List<Map<String, dynamic>>
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<String> assignRoutineToUser(
@@ -71,7 +74,9 @@ class SupabaseRoutineDatasource {
         .from('user_routines')
         .select('*, routines(*), profiles(*)')
         .eq('status', 'completed');
-    return response;
+    
+    // Conversion explicite pour assurer le bon type
+    return List<Map<String, dynamic>>.from(response);
   }
 
   Future<void> validateUserRoutine(
@@ -94,7 +99,7 @@ class SupabaseRoutineDatasource {
     final userRoutine =
         await _client
             .from('user_routines')
-            .select('user_id')
+            .select('profile_id')
             .eq('id', userRoutineId)
             .single();
 
@@ -103,7 +108,7 @@ class SupabaseRoutineDatasource {
       await _client.rpc(
         'add_user_experience',
         params: {
-          'user_id_param': userRoutine['user_id'],
+          'user_id_param': userRoutine['profile_id'],
           'points_param': experiencePoints,
         },
       );

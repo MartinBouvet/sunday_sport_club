@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class Routine {
   final String id;
   final String name;
@@ -24,18 +26,104 @@ class Routine {
   });
 
   factory Routine.fromJson(Map<String, dynamic> json) {
-    return Routine(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
-      difficulty: json['difficulty'],
-      estimatedDurationMinutes: json['estimated_duration_minutes'],
-      exerciseIds: List<String>.from(json['exercise_ids']),
-      exerciseDetails: json['exercise_details'],
-      createdBy: json['created_by'],
-      createdAt: DateTime.parse(json['created_at']),
-      isPublic: json['is_public'],
-    );
+    try {
+      // Extraction avec gestion des valeurs nulles
+      final String id = json['id']?.toString() ?? '';
+      if (id.isEmpty) {
+        debugPrint('WARNING: Routine ID manquant dans: $json');
+      }
+
+      final String name = json['name']?.toString() ?? 'Routine sans nom';
+      final String description = json['description']?.toString() ?? '';
+      final String difficulty = json['difficulty']?.toString() ?? 'intermédiaire';
+      
+      // Conversion sécurisée pour les valeurs numériques
+      int estimatedDurationMinutes = 30; // Valeur par défaut
+      try {
+        if (json['estimated_duration_minutes'] != null) {
+          estimatedDurationMinutes = int.tryParse(json['estimated_duration_minutes'].toString()) ?? 30;
+        }
+      } catch (e) {
+        debugPrint('Erreur lors de la conversion de la durée: $e');
+      }
+      
+      // Gestion sécurisée des listes
+      List<String> exerciseIds = [];
+      if (json['exercise_ids'] != null) {
+        if (json['exercise_ids'] is List) {
+          exerciseIds = List<String>.from(
+            (json['exercise_ids'] as List).map((e) => e?.toString() ?? '')
+          ).where((id) => id.isNotEmpty).toList();
+        } else {
+          debugPrint('WARNING: exercise_ids n\'est pas une liste: ${json['exercise_ids']}');
+        }
+      }
+      
+      // Extraction sécurisée des détails d'exercice
+      Map<String, dynamic>? exerciseDetails;
+      if (json['exercise_details'] != null) {
+        try {
+          exerciseDetails = Map<String, dynamic>.from(json['exercise_details']);
+        } catch (e) {
+          debugPrint('Erreur lors de la conversion des détails d\'exercice: $e');
+        }
+      }
+      
+      // Extraction sécurisée du createdBy
+      final String createdBy = json['created_by']?.toString() ?? '';
+      
+      // Conversion sécurisée de la date de création
+      DateTime createdAt;
+      try {
+        createdAt = json['created_at'] != null 
+            ? DateTime.parse(json['created_at']) 
+            : DateTime.now();
+      } catch (e) {
+        debugPrint('WARNING: Format de date incorrect pour created_at: ${json['created_at']}');
+        createdAt = DateTime.now();
+      }
+      
+      // Extraction booléenne
+      bool isPublic = false;
+      if (json['is_public'] != null) {
+        if (json['is_public'] is bool) {
+          isPublic = json['is_public'];
+        } else {
+          // Tentative de conversion de chaîne ou de nombre en booléen
+          final String boolStr = json['is_public'].toString().toLowerCase();
+          isPublic = boolStr == 'true' || boolStr == '1';
+        }
+      }
+
+      return Routine(
+        id: id,
+        name: name,
+        description: description,
+        difficulty: difficulty,
+        estimatedDurationMinutes: estimatedDurationMinutes,
+        exerciseIds: exerciseIds,
+        exerciseDetails: exerciseDetails,
+        createdBy: createdBy,
+        createdAt: createdAt,
+        isPublic: isPublic,
+      );
+    } catch (e) {
+      debugPrint('ERREUR lors du parsing Routine: $e');
+      debugPrint('Données problématiques: $json');
+      
+      // Retourner un objet minimal mais valide plutôt que de planter
+      return Routine(
+        id: json['id']?.toString() ?? 'error-${DateTime.now().millisecondsSinceEpoch}',
+        name: json['name']?.toString() ?? 'Routine sans nom',
+        description: 'Erreur de chargement',
+        difficulty: 'intermédiaire',
+        estimatedDurationMinutes: 30,
+        exerciseIds: [],
+        createdBy: '',
+        createdAt: DateTime.now(),
+        isPublic: false,
+      );
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -77,5 +165,10 @@ class Routine {
       createdAt: createdAt ?? this.createdAt,
       isPublic: isPublic ?? this.isPublic,
     );
+  }
+  
+  @override
+  String toString() {
+    return 'Routine{id: $id, name: $name, difficulty: $difficulty}';
   }
 }
