@@ -40,33 +40,58 @@ class RoutineProvider extends ChangeNotifier {
   }
 
   Future<void> fetchUserRoutines(String userId) async {
-    _setLoading(true);
-    _clearMessages();
+  _setLoading(true);
+  _clearMessages();
 
-    try {
-      debugPrint("Récupération des routines pour l'utilisateur: $userId");
-      _userRoutines = await _routineRepository.getUserRoutines(userId);
+  try {
+    debugPrint("Récupération des routines pour l'utilisateur: $userId");
+    _userRoutines = await _routineRepository.getUserRoutines(userId);
+    
+    // Uniformiser les statuts si nécessaire
+    for (int i = 0; i < _userRoutines.length; i++) {
+      final routine = _userRoutines[i];
       
-      // Analyse des statuts de routine
-      final Map<String, int> statusCounts = {};
-      for (var routine in _userRoutines) {
-        statusCounts[routine.status] = (statusCounts[routine.status] ?? 0) + 1;
-        debugPrint("Routine ID: ${routine.id}, Status: ${routine.status}, RoutineID: ${routine.routineId}");
+      // Normaliser les statuts pour assurer la cohérence
+      String normalizedStatus = routine.status.toLowerCase();
+      
+      // Mapper les statuts anglais vers leurs équivalents français si nécessaire
+      if (normalizedStatus == 'pending') {
+        normalizedStatus = 'assigné';
+      } else if (normalizedStatus == 'in_progress') {
+        normalizedStatus = 'en cours';
+      } else if (normalizedStatus == 'completed') {
+        normalizedStatus = 'terminé';
+      } else if (normalizedStatus == 'validated') {
+        normalizedStatus = 'validé';
       }
       
-      // Afficher un résumé des statuts
-      statusCounts.forEach((status, count) {
-        debugPrint("Statut '$status': $count routines");
-      });
-      
-      _setLoading(false);
-    } catch (e) {
-      debugPrint("⚠️ ERREUR lors de la récupération des routines: $e");
-      _setError(
-        'Erreur lors de la récupération des routines utilisateur: ${e.toString()}',
-      );
+      // Ne mettre à jour que si le statut a changé
+      if (normalizedStatus != routine.status.toLowerCase()) {
+        _userRoutines[i] = routine.copyWith(status: normalizedStatus);
+        debugPrint("Statut normalisé: ${routine.status} -> $normalizedStatus pour la routine ${routine.id}");
+      }
     }
+    
+    // Analyse des statuts de routine pour le débogage
+    final Map<String, int> statusCounts = {};
+    for (var routine in _userRoutines) {
+      statusCounts[routine.status] = (statusCounts[routine.status] ?? 0) + 1;
+      debugPrint("Routine ID: ${routine.id}, Status: ${routine.status}, RoutineID: ${routine.routineId}");
+    }
+    
+    // Afficher un résumé des statuts
+    statusCounts.forEach((status, count) {
+      debugPrint("Statut '$status': $count routines");
+    });
+    
+    _setLoading(false);
+  } catch (e) {
+    debugPrint("⚠️ ERREUR lors de la récupération des routines: $e");
+    _setError(
+      'Erreur lors de la récupération des routines utilisateur: ${e.toString()}',
+    );
   }
+}
 
   Future<Exercise?> getExerciseById(String exerciseId) async {
     if (_exercisesCache.containsKey(exerciseId)) {
@@ -103,37 +128,37 @@ class RoutineProvider extends ChangeNotifier {
   }
 
   Future<bool> completeUserRoutine(String userRoutineId) async {
-    _setLoading(true);
-    _clearMessages();
+  _setLoading(true);
+  _clearMessages();
 
-    try {
-      debugPrint("Tentative de complétion de la routine: $userRoutineId");
-      await _routineRepository.updateUserRoutineStatus(
-        userRoutineId,
-        'terminé',
+  try {
+    debugPrint("Tentative de complétion de la routine: $userRoutineId");
+    await _routineRepository.updateUserRoutineStatus(
+      userRoutineId,
+      'terminé', // Utilisation du statut en français
+    );
+
+    // Mise à jour locale
+    final index = _userRoutines.indexWhere((r) => r.id == userRoutineId);
+    if (index != -1) {
+      debugPrint("Mise à jour locale de la routine: statut précédent=${_userRoutines[index].status}");
+      _userRoutines[index] = _userRoutines[index].copyWith(
+        status: 'terminé',
+        completionDate: DateTime.now(),
       );
-
-      // Mise à jour locale
-      final index = _userRoutines.indexWhere((r) => r.id == userRoutineId);
-      if (index != -1) {
-        debugPrint("Mise à jour locale de la routine: statut précédent=${_userRoutines[index].status}");
-        _userRoutines[index] = _userRoutines[index].copyWith(
-          status: 'terminé',
-          completionDate: DateTime.now(),
-        );
-        debugPrint("Routine mise à jour localement: nouveau statut=${_userRoutines[index].status}");
-      } else {
-        debugPrint("⚠️ Routine non trouvée localement pour mise à jour: $userRoutineId");
-      }
-
-      _setSuccess('Routine terminée avec succès');
-      return true;
-    } catch (e) {
-      debugPrint("⚠️ ERREUR lors de la complétion de routine: $e");
-      _setError('Erreur lors de la complétion de la routine: ${e.toString()}');
-      return false;
+      debugPrint("Routine mise à jour localement: nouveau statut=${_userRoutines[index].status}");
+    } else {
+      debugPrint("⚠️ Routine non trouvée localement pour mise à jour: $userRoutineId");
     }
+
+    _setSuccess('Routine terminée avec succès');
+    return true;
+  } catch (e) {
+    debugPrint("⚠️ ERREUR lors de la complétion de routine: $e");
+    _setError('Erreur lors de la complétion de la routine: ${e.toString()}');
+    return false;
   }
+}
 
   void _setLoading(bool loading) {
     _isLoading = loading;

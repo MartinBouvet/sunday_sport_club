@@ -19,32 +19,40 @@ class RoutinesScreen extends StatefulWidget {
 }
 
 class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProviderStateMixin {
-  bool _isLoading = false;
+  bool _isLoading = true;
   late TabController _tabController;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_handleTabSelection); // Ajout de l'écouteur manquant
-    _loadRoutines();
+    _tabController.addListener(_handleTabSelection);
+    
+    // Chargement asynchrone à l'initialisation du widget, PAS dans le build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadRoutines();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_handleTabSelection);
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _handleTabSelection() {
     if (_tabController.indexIsChanging) {
       setState(() {
-        // Force le rafraîchissement de l'interface utilisateur lors du changement d'onglet
+        _currentTabIndex = _tabController.index;
       });
     }
   }
 
-  @override
-  void dispose() {
-    _tabController.removeListener(_handleTabSelection); // Nettoyage de l'écouteur
-    _tabController.dispose();
-    super.dispose();
-  }
   Future<void> _loadRoutines() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -54,13 +62,16 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       if (authProvider.currentUser != null) {
-        // Charger les routines de l'utilisateur
-        await routineProvider.fetchUserRoutines(authProvider.currentUser!.id);
+        debugPrint("Récupération des routines pour l'utilisateur: ${authProvider.currentUser!.id}");
         
-        // Charger toutes les routines disponibles
+        // Chargement des routines disponibles d'abord (moins susceptible d'échouer)
         await routineProvider.fetchAvailableRoutines();
+        
+        // Puis chargement des routines de l'utilisateur
+        await routineProvider.fetchUserRoutines(authProvider.currentUser!.id);
       }
     } catch (e) {
+      debugPrint("Erreur lors du chargement des routines: $e");
       // Error handling is done by the provider
     } finally {
       if (mounted) {
@@ -83,11 +94,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
             Tab(text: 'En cours'),
             Tab(text: 'Terminées'),
           ],
-          labelColor: Colors.white, // Couleur du texte sélectionné
-    unselectedLabelColor: Colors.white.withOpacity(0.7), // Couleur du texte non sélectionné
-    labelStyle: const TextStyle(fontWeight: FontWeight.bold), // Texte en gras quand sélectionné
-    indicatorColor: Colors.white, // Couleur de l'indicateur (ligne sous l'onglet)
-    indicatorWeight: 3.0,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          indicatorColor: Colors.white,
+          indicatorWeight: 3.0,
         ),
       ),
       body: Consumer<AuthProvider>(
@@ -122,17 +133,19 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
               final userRoutines = routineProvider.userRoutines;
               List<UserRoutine> filteredRoutines = [];
               
-              switch (_tabController.index) {
+              // Utiliser _currentTabIndex au lieu de _tabController.index pour éviter
+              // les appels setState pendant le build
+              switch (_currentTabIndex) {
                 case 0: // Toutes
                   filteredRoutines = userRoutines;
                   break;
                 case 1: // En cours
                   filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'assigné' || routine.status == 'en cours').toList();
+                    routine.status == 'pending' || routine.status == 'in_progress').toList();
                   break;
                 case 2: // Terminées
                   filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'terminé' || routine.status == 'validé').toList();
+                    routine.status == 'completed' || routine.status == 'validated').toList();
                   break;
               }
 
@@ -147,10 +160,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Rafraîchir les routines
-          _loadRoutines();
-        },
+        onPressed: _loadRoutines,
         tooltip: 'Rafraîchir',
         child: const Icon(Icons.refresh),
       ),
@@ -207,10 +217,12 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
     );
   }
 
+  // Reste du code inchangé...
+  
   Widget _buildEmptyState() {
     String message = '';
     
-    switch (_tabController.index) {
+    switch (_currentTabIndex) {
       case 0:
         message = 'Aucune routine assignée actuellement';
         break;
@@ -260,8 +272,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       itemCount: routines.length,
       itemBuilder: (context, index) {
         final userRoutine = routines[index];
-        // TODO: Fetch actual routine details from repository
-        // For now, just show a placeholder
         
         return Card(
           elevation: 2,
@@ -470,6 +480,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   }
 
   String _formatDate(DateTime date) {
-    return'${date.day}/${date.month}/${date.year}';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

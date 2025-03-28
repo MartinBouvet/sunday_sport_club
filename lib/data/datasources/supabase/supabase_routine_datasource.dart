@@ -62,128 +62,56 @@ class SupabaseRoutineDatasource {
 
   // Méthode optimisée pour récupérer les routines d'un utilisateur
   Future<List<Map<String, dynamic>>> getUserRoutines(String userId) async {
-    // Validation d'entrée
-    if (userId.isEmpty) {
-      debugPrint('ERREUR: getUserRoutines appelée avec un userId vide');
-      return [];
-    }
-    
-    debugPrint('Récupération des routines pour l\'utilisateur: $userId');
-    
     try {
-      // Premièrement, vérifions que l'utilisateur existe
-      final userCheck = await _client
+      // Log pour le débogage - IMPORTANT pour diagnostiquer le problème
+      debugPrint("=== DIAGNOSTIC REQUÊTE USER_ROUTINES ===");
+      debugPrint("ID utilisateur reçu: '$userId'");
+      
+      // Vérification que la table est accessible
+      final testQuery = await supabase.from('user_routines').select('id').limit(1);
+      debugPrint("√ Table 'user_routines' accessible");
+      
+      // Compter le nombre total d'entrées dans la table pour diagnostic
+      final countQuery = await supabase.from('user_routines').select('id');
+      debugPrint("Total d'entrées dans la table: ${countQuery.length}");
+      
+      // Essayons différentes approches de requête pour diagnostiquer
+      // 1. Avec le nom de colonne 'profile_id' (comme dans votre diagnostic)
+      final resultByProfileId = await supabase
+          .from('user_routines')
+          .select()
+          .eq('profile_id', userId);
+      debugPrint("Résultat de la requête avec .eq('profile_id', userId): ${resultByProfileId.length} entrées");
+      
+      // Vérifier l'existence de l'utilisateur
+      final userExists = await supabase
           .from('profiles')
           .select('id')
-          .eq('id', userId)
-          .maybeSingle();
+          .eq('id', userId);
+      debugPrint("Vérification de l'existence de l'utilisateur: ${userExists.length} résultats");
       
-      if (userCheck == null) {
-        debugPrint('Utilisateur non trouvé dans la base de données: $userId');
-        return [];
-      }
-      
-      // Déterminons la structure de la table user_routines
-      List<Map<String, dynamic>> userRoutines = [];
-      
-      // Essai avec profile_id (variante la plus courante)
-      debugPrint('Tentative de récupération avec profile_id...');
-      final profileIdResponse = await _client
-          .from('user_routines')
-          .select('*, routines(*)')
-          .eq('profile_id', userId);
-      
-      if (profileIdResponse.isNotEmpty) {
-        userRoutines = List<Map<String, dynamic>>.from(profileIdResponse);
-        debugPrint('Routines récupérées avec profile_id: ${userRoutines.length}');
+      // Déterminer quel résultat retourner
+      List<Map<String, dynamic>> finalResult = [];
+      if (resultByProfileId.length > 0) {
+        finalResult = resultByProfileId;
+        debugPrint("√ Utilisation des résultats de profile_id");
       } else {
-        // Essai avec user_id (autre variante courante)
-        debugPrint('Tentative de récupération avec user_id...');
-        final userIdResponse = await _client
-            .from('user_routines')
-            .select('*, routines(*)')
-            .eq('user_id', userId);
-        
-        if (userIdResponse.isNotEmpty) {
-          userRoutines = List<Map<String, dynamic>>.from(userIdResponse);
-          debugPrint('Routines récupérées avec user_id: ${userRoutines.length}');
-        } else {
-          // Si aucune routine n'est trouvée, nous allons insérer une routine de test
-          debugPrint('Aucune routine trouvée - création d\'une routine de test...');
-          
-          // 1. Récupérer une routine existante
-          final routinesResponse = await _client
-              .from('routines')
-              .select('id')
-              .limit(1);
-          
-          if (routinesResponse.isNotEmpty) {
-            final routineId = routinesResponse[0]['id'];
-            
-            // 2. Créer une routine utilisateur de test
-            await _client
-                .from('user_routines')
-                .insert({
-                  'profile_id': userId,
-                  'routine_id': routineId,
-                  'assigned_date': DateTime.now().toIso8601String(),
-                  'status': 'assigned'
-                });
-            
-            // 3. Récupérer à nouveau les routines
-            final newResponse = await _client
-                .from('user_routines')
-                .select('*, routines(*)')
-                .eq('profile_id', userId);
-            
-            userRoutines = List<Map<String, dynamic>>.from(newResponse);
-            debugPrint('Routine de test créée et récupérée: ${userRoutines.length}');
-          }
-        }
+        debugPrint("❌ Aucune méthode n'a donné de résultat");
       }
       
-      // Vérification des données récupérées
-      if (userRoutines.isNotEmpty) {
-        // Journalisation des clés disponibles dans la première routine
-        final firstRoutine = userRoutines.first;
-        debugPrint('Clés disponibles dans la routine: ${firstRoutine.keys.join(', ')}');
-        
-        // Vérification de la présence des routines liées
-        if (firstRoutine.containsKey('routines')) {
-          final routineData = firstRoutine['routines'];
-          debugPrint('Données de routine liées disponibles: ${routineData != null}');
-          
-          if (routineData != null) {
-            debugPrint('Clés dans routine liée: ${(routineData as Map<String, dynamic>).keys.join(', ')}');
-          }
-        }
-        
-        // Vérification des statuts disponibles
-        final statusValues = userRoutines
-            .map((routine) => routine['status']?.toString() ?? 'null')
-            .toSet()
-            .toList();
-        debugPrint('Statuts de routines disponibles: $statusValues');
-      }
+      debugPrint("Retour de ${finalResult.length} routines");
+      debugPrint("=== FIN DIAGNOSTIC ===");
       
-      return userRoutines;
-    } catch (e, stackTrace) {
-      debugPrint('ERREUR dans getUserRoutines: $e');
-      debugPrint('Stack trace: $stackTrace');
-      return [];
+      return finalResult;
+    } catch (e) {
+      debugPrint("❌ Erreur lors de la récupération des routines: $e");
+      rethrow;
     }
   }
-
   Future<String> assignRoutineToUser(
     Map<String, dynamic> userRoutineData,
   ) async {
-    try {
-      // Garantir que nous utilisons le bon nom de colonne pour l'ID utilisateur
-      if (userRoutineData.containsKey('user_id') && !userRoutineData.containsKey('profile_id')) {
-        userRoutineData['profile_id'] = userRoutineData['user_id'];
-        userRoutineData.remove('user_id');
-      }
-      
+    try {      
       // Ajouter la date d'assignation si manquante
       if (!userRoutineData.containsKey('assigned_date')) {
         userRoutineData['assigned_date'] = DateTime.now().toIso8601String();
@@ -259,50 +187,139 @@ class SupabaseRoutineDatasource {
   }
 
   Future<List<Map<String, dynamic>>> getPendingValidationRoutines() async {
-    final response = await _client
-        .from('user_routines')
-        .select('*, routines(*), profiles(*)')
-        .eq('status', 'completed');
-    
-    // Conversion explicite pour assurer le bon type
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await supabase
+          .from('user_routines')
+          .select()
+          .in_('status', ['completed'])
+          .order('completion_date', ascending: false);
+      
+      return response;
+    } catch (e) {
+      debugPrint("Erreur lors de la récupération des routines en attente: $e");
+      rethrow;
+    }
   }
 
   Future<void> validateUserRoutine(
     String userRoutineId,
-    String coachId,
+    String validatedBy,
     String feedback,
-    int experiencePoints,
+    int experiencePoints
   ) async {
-    await _client
-        .from('user_routines')
-        .update({
-          'status': 'validated',
-          'validated_by': coachId,
-          'feedback': feedback,
-          'experience_gained': experiencePoints,
-        })
-        .eq('id', userRoutineId);
-
-    // Récupérer l'ID de l'utilisateur
-    final userRoutine =
-        await _client
-            .from('user_routines')
-            .select('profile_id')
-            .eq('id', userRoutineId)
+    try {
+      // 1. Mettre à jour la routine utilisateur
+      await supabase
+          .from('user_routines')
+          .update({
+            'status': 'validated',
+            'validated_by': validatedBy,
+            'validation_date': DateTime.now().toIso8601String(),
+            'feedback': feedback
+          })
+          .eq('id', userRoutineId);
+      
+      // 2. Récupérer l'ID de l'utilisateur associé à cette routine
+      final routineData = await supabase
+          .from('user_routines')
+          .select('profile_id')
+          .eq('id', userRoutineId)
+          .single();
+      
+      // Déterminer le bon ID utilisateur
+      String userId;
+      if (routineData['profile_id'] != null) {
+        userId = routineData['profile_id'];
+      } else {
+        throw Exception('Impossible de déterminer l\'ID utilisateur');
+      }
+      
+      // 3. Ajouter des points d'expérience à l'utilisateur
+      if (experiencePoints > 0) {
+        // Récupérer les points actuels
+        final userData = await supabase
+            .from('profiles')
+            .select('experience_points, level')
+            .eq('id', userId)
             .single();
-
-    // Mettre à jour les points d'expérience de l'utilisateur
-    if (userRoutine != null) {
-      await _client.rpc(
-        'add_user_experience',
-        params: {
-          'user_id_param': userRoutine['profile_id'],
-          'points_param': experiencePoints,
-        },
-      );
+        
+        final currentPoints = userData['experience_points'] ?? 0;
+        final currentLevel = userData['level'] ?? 1;
+        
+        // Calculer les nouveaux points et niveau
+        final newPoints = currentPoints + experiencePoints;
+        final newLevel = (newPoints / 100).floor() + 1;
+        
+        // Déterminer le nouveau stade d'avatar si nécessaire
+        String avatarStage = 'mince';
+        if (newLevel >= 30) {
+          avatarStage = 'muscle';
+        } else if (newLevel >= 10) {
+          avatarStage = 'moyen';
+        }
+        
+        // Mettre à jour l'utilisateur
+        await supabase
+            .from('profiles')
+            .update({
+              'experience_points': newPoints,
+              'level': newLevel,
+              'avatar_stage': avatarStage
+            })
+            .eq('id', userId);
+      }
+    } catch (e) {
+      debugPrint("Erreur lors de la validation de la routine: $e");
+      rethrow;
     }
   }
+
+  Future<void> createUserRoutine(Map<String, dynamic> data) async {
+    try {
+      debugPrint("Tentative de création d'une routine utilisateur");
+      
+      // Vérifier que les champs obligatoires sont présents
+      if (!data.containsKey('profile_id')) {
+        throw ArgumentError("L'ID de l'utilisateur est obligatoire (profile_id)");
+      }
+      
+      if (!data.containsKey('routine_id')) {
+        throw ArgumentError("L'ID de la routine est obligatoire");
+      }
+      
+      // Vérifier quelle colonne est utilisée dans la base de données (profile_id ou user_id)
+      // et adapter le payload en conséquence
+      Map<String, dynamic> payload = Map.from(data);
+      
+      // Par défaut, on utilise la colonne telle qu'elle est fournie dans les données
+      // Si aucune des deux n'est fournie, on lèvera une exception plus haut
+      
+      // Assurons-nous que la date d'assignation est présente
+      if (!payload.containsKey('assigned_date')) {
+        payload['assigned_date'] = DateTime.now().toIso8601String();
+      }
+      
+      // Assurons-nous que le statut est présent
+      if (!payload.containsKey('status')) {
+        payload['status'] = 'pending'; // ou 'assigné' selon votre logique métier
+      }
+      
+      debugPrint("Payload pour création routine utilisateur: $payload");
+      
+      // Insertion dans la base de données
+      final response = await supabase
+          .from('user_routines')
+          .insert(payload)
+          .select('id')
+          .single();
+          
+      debugPrint("√ Routine utilisateur créée avec ID: ${response['id']}");
+    } catch (e) {
+      debugPrint("❌ Erreur lors de la création de routine utilisateur: $e");
+      rethrow;
+    }
+  }
+
   Future<int> getPendingValidationCount() async {
   try {
     final response = await _client
