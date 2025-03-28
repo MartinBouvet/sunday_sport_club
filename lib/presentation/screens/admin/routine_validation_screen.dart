@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/loading_indicator.dart';
-import '../../core/widgets/error_display.dart';
-import '../../data/models/user_routine.dart';
-import '../../data/models/routine.dart';
-import '../../data/models/exercise.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/loading_indicator.dart';
+import '../../../core/widgets/error_display.dart';
+import '../../../data/models/user_routine.dart';
+import '../../../data/models/routine.dart';
+import '../../../data/models/exercise.dart';
+import '../../../data/models/user.dart';
+import '../../../data/repositories/routine_repository.dart';
+import '../../../data/repositories/user_repository.dart';
+import '../../../data/repositories/exercise_repository.dart';
+import '../../../data/datasources/supabase/supabase_routine_datasource.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/routine_provider.dart';
 
 class RoutineValidationScreen extends StatefulWidget {
-  const RoutineValidationScreen({Key? key}) : super(key: key);
+  const RoutineValidationScreen({super.key});
 
   @override
   State<RoutineValidationScreen> createState() => _RoutineValidationScreenState();
@@ -21,10 +25,19 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
   late TabController _tabController;
   bool _isLoading = false;
   String? _errorMessage;
-  List<UserRoutine> _allUserRoutines = [];
+  
+  // Les dépôts pour accéder aux données
+  final RoutineRepository _routineRepository = RoutineRepository();
+  final UserRepository _userRepository = UserRepository();
+  final ExerciseRepository _exerciseRepository = ExerciseRepository();
+  final SupabaseRoutineDatasource _routineDatasource = SupabaseRoutineDatasource();
+  
+  // Données récupérées
+  List<UserRoutine> _userRoutines = [];
   List<UserRoutine> _filteredRoutines = [];
   Map<String, Routine> _routinesCache = {};
-  Map<String, String> _userNames = {};
+  Map<String, User> _usersCache = {};
+  Map<String, List<Exercise>> _exercisesCache = {};
   
   // Filtres
   String _currentFilter = "pending"; // pending, validated, rejected
@@ -64,10 +77,10 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
   
   void _filterRoutines() {
     setState(() {
-      _filteredRoutines = _allUserRoutines.where((routine) {
+      _filteredRoutines = _userRoutines.where((routine) {
         switch (_currentFilter) {
           case "pending":
-            return routine.status == 'completed' && !routine.isValidatedByCoach;
+            return routine.status == 'completed';
           case "validated":
             return routine.status == 'validated';
           case "rejected":
@@ -78,7 +91,8 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
       }).toList();
       
       // Tri par date (plus récent d'abord)
-      _filteredRoutines.sort((a, b) => b.completedDate?.compareTo(a.completedDate ?? DateTime.now()) ?? 0);
+      _filteredRoutines.sort((a, b) => 
+        b.completionDate?.compareTo(a.completionDate ?? DateTime.now()) ?? 0);
     });
   }
 
@@ -89,17 +103,48 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
     });
 
     try {
-      // Simuler le chargement des données pour la démo
-      await Future.delayed(const Duration(seconds: 1));
+      // Récupérer les routines en attente de validation
+      final pendingRoutines = await _routineDatasource.getPendingValidationRoutines();
       
-      // Créer des routines utilisateur fictives pour la démo
-      final routineData = _createMockRoutineData();
+      _userRoutines = [];
+      for (var data in pendingRoutines) {
+        try {
+          final userRoutine = UserRoutine.fromJson(data);
+          _userRoutines.add(userRoutine);
+          
+          // Charger la routine associée si elle n'est pas déjà en cache
+          if (!_routinesCache.containsKey(userRoutine.routineId)) {
+            final routine = await _routineRepository.getRoutine(userRoutine.routineId);
+            if (routine != null) {
+              _routinesCache[userRoutine.routineId] = routine;
+              
+              // Précharger les exercices de la routine
+              if (routine.exerciseIds.isNotEmpty) {
+                _exercisesCache[routine.id] = [];
+                for (var exerciseId in routine.exerciseIds) {
+                  final exercise = await _exerciseRepository.getExercise(exerciseId);
+                  if (exercise != null) {
+                    _exercisesCache[routine.id]?.add(exercise);
+                  }
+                }
+              }
+            }
+          }
+          
+          // Charger l'utilisateur associé si pas déjà en cache
+          if (!_usersCache.containsKey(userRoutine.userId)) {
+            final user = await _userRepository.getUser(userRoutine.userId);
+            if (user != null) {
+              _usersCache[userRoutine.userId] = user;
+            }
+          }
+        } catch (e) {
+          debugPrint('Erreur lors du traitement de la routine: $e');
+        }
+      }
       
+      _filterRoutines();
       setState(() {
-        _allUserRoutines = routineData['userRoutines'] as List<UserRoutine>;
-        _routinesCache = routineData['routines'] as Map<String, Routine>;
-        _userNames = routineData['userNames'] as Map<String, String>;
-        _filterRoutines();
         _isLoading = false;
       });
     } catch (e) {
@@ -110,136 +155,28 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
     }
   }
   
-  // Génération de données fictives pour la démo
-  Map<String, dynamic> _createMockRoutineData() {
-    List<UserRoutine> userRoutines = [];
-    Map<String, Routine> routines = {};
-    Map<String, String> userNames = {};
-    
-    // Créer quelques routines de base
-    final routinesList = [
-      Routine(
-        id: 'routine1',
-        name: 'Renforcement musculaire complet',
-        description: 'Routine complète pour renforcer tous les groupes musculaires',
-        difficulty: 'Intermédiaire',
-        estimatedDurationMinutes: 45,
-        exerciseIds: ['ex1', 'ex2', 'ex3', 'ex4'],
-        exerciseDetails: {
-          'ex1': {'sets': 3, 'reps': 12},
-          'ex2': {'sets': 4, 'reps': 10},
-          'ex3': {'sets': 3, 'reps': 15},
-          'ex4': {'sets': 3, 'reps': 20},
-        },
-      ),
-      Routine(
-        id: 'routine2',
-        name: 'Cardio intensif',
-        description: 'Routine de cardio à haute intensité pour brûler des calories',
-        difficulty: 'Difficile',
-        estimatedDurationMinutes: 30,
-        exerciseIds: ['ex5', 'ex6', 'ex7'],
-        exerciseDetails: {
-          'ex5': {'sets': 4, 'reps': 20},
-          'ex6': {'sets': 3, 'reps': 15},
-          'ex7': {'sets': 5, 'reps': 10},
-        },
-      ),
-      Routine(
-        id: 'routine3',
-        name: 'Débutant full-body',
-        description: 'Routine complète pour débutants',
-        difficulty: 'Facile',
-        estimatedDurationMinutes: 35,
-        exerciseIds: ['ex1', 'ex8', 'ex9'],
-        exerciseDetails: {
-          'ex1': {'sets': 2, 'reps': 10},
-          'ex8': {'sets': 2, 'reps': 12},
-          'ex9': {'sets': 2, 'reps': 15},
-        },
-      ),
-    ];
-    
-    for (var routine in routinesList) {
-      routines[routine.id] = routine;
-    }
-    
-    // Créer des utilisateurs fictifs
-    final usersList = {
-      'user1': 'Jean Dupont',
-      'user2': 'Marie Martin',
-      'user3': 'Pierre Dubois',
-      'user4': 'Sophie Lefebvre',
-      'user5': 'Thomas Bernard',
-    };
-    
-    userNames.addAll(usersList);
-    
-    // Générer des routines utilisateur
-    final now = DateTime.now();
-    final List<String> statuses = ['completed', 'validated', 'rejected'];
-    
-    for (int i = 0; i < 15; i++) {
-      final userId = 'user${(i % 5) + 1}';
-      final routineId = 'routine${(i % 3) + 1}';
-      final status = statuses[i % 3];
-      final assignedDate = now.subtract(Duration(days: 30 - i));
-      final completedDate = status != 'completed' ? assignedDate.add(const Duration(days: 5)) : null;
-      final isValidated = status == 'validated';
-      
-      userRoutines.add(UserRoutine(
-        id: 'userRoutine$i',
-        userId: userId,
-        routineId: routineId,
-        assignedDate: assignedDate,
-        dueDate: assignedDate.add(const Duration(days: 7)),
-        status: status,
-        isValidatedByCoach: isValidated,
-        completedDate: completedDate,
-        exercisesCompleted: {
-          'ex1': true,
-          'ex2': true,
-          'ex3': i % 2 == 0,
-          'ex4': i % 3 == 0,
-          'ex5': true,
-          'ex6': i % 2 != 0,
-          'ex7': true,
-          'ex8': i % 3 != 0,
-          'ex9': true,
-        },
-      ));
-    }
-    
-    return {
-      'userRoutines': userRoutines,
-      'routines': routines,
-      'userNames': userNames,
-    };
-  }
-  
-  Future<void> _validateRoutine(UserRoutine userRoutine, bool isValidated) async {
+  Future<void> _validateRoutine(UserRoutine userRoutine, bool isValidated, String feedback) async {
     setState(() {
       _isLoading = true;
     });
     
     try {
-      // Simuler une requête réseau
-      await Future.delayed(const Duration(seconds: 1));
+      // Points d'expérience à accorder
+      final int xpPoints = isValidated ? 25 : 0; // 25 XP pour une routine validée
       
-      // Mettre à jour l'état de la routine
-      final index = _allUserRoutines.indexWhere((r) => r.id == userRoutine.id);
-      if (index != -1) {
-        setState(() {
-          _allUserRoutines[index] = _allUserRoutines[index].copyWith(
-            status: isValidated ? 'validated' : 'rejected',
-            isValidatedByCoach: isValidated,
-          );
-        });
-        
-        // Mettre à jour la liste filtrée
-        _filterRoutines();
-        
-        // Afficher un message de confirmation
+      // Valider la routine via le datasource
+      await _routineDatasource.validateUserRoutine(
+        userRoutine.id,
+        Provider.of<AuthProvider>(context, listen: false).currentUser!.id,
+        feedback,
+        xpPoints
+      );
+      
+      // Mettre à jour l'affichage
+      await _loadRoutines();
+      
+      // Afficher un message de confirmation
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(isValidated 
@@ -250,16 +187,17 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
   
@@ -278,7 +216,7 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
               'Routine: ${_routinesCache[userRoutine.routineId]?.name ?? 'Inconnue'}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            Text('Utilisateur: ${_userNames[userRoutine.userId] ?? 'Inconnu'}'),
+            Text('Utilisateur: ${_getUserName(userRoutine.userId)}'),
             const SizedBox(height: 16),
             TextField(
               controller: feedbackController,
@@ -299,7 +237,11 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              _validateRoutine(userRoutine, isValidating);
+              _validateRoutine(
+                userRoutine, 
+                isValidating, 
+                feedbackController.text.trim()
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: isValidating ? Colors.green : Colors.orange,
@@ -310,6 +252,14 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
         ],
       ),
     );
+  }
+
+  String _getUserName(String userId) {
+    final user = _usersCache[userId];
+    if (user != null) {
+      return '${user.firstName} ${user.lastName}';
+    }
+    return 'Utilisateur inconnu';
   }
 
   @override
@@ -388,7 +338,7 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
                                               Navigator.of(context).pop();
                                               // Valider toutes les routines en attente
                                               for (var routine in List.from(_filteredRoutines)) {
-                                                _validateRoutine(routine, true);
+                                                _validateRoutine(routine, true, 'Validation groupée');
                                               }
                                             },
                                             style: ElevatedButton.styleFrom(
@@ -486,7 +436,6 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
   
   Widget _buildUserRoutineCard(UserRoutine userRoutine) {
     final routine = _routinesCache[userRoutine.routineId];
-    final userName = _userNames[userRoutine.userId] ?? 'Utilisateur inconnu';
     
     // Déterminer la couleur et l'icône en fonction du statut
     Color statusColor;
@@ -575,7 +524,7 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Par $userName',
+                  'Par ${_getUserName(userRoutine.userId)}',
                   style: const TextStyle(
                     fontSize: 14,
                   ),
@@ -599,7 +548,7 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
             const SizedBox(height: 4),
             
             // Date de complétion
-            if (userRoutine.completedDate != null)
+            if (userRoutine.completionDate != null)
               Row(
                 children: [
                   Icon(
@@ -609,7 +558,7 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Complétée le ${DateFormat('dd/MM/yyyy').format(userRoutine.completedDate!)}',
+                    'Complétée le ${DateFormat('dd/MM/yyyy').format(userRoutine.completionDate!)}',
                     style: const TextStyle(
                       fontSize: 14,
                     ),
@@ -632,29 +581,30 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
                 ),
               ),
             
-            // Progrès des exercices
-            if (userRoutine.exercisesCompleted.isNotEmpty)
+            // Liste des exercices
+            if (routine != null && _exercisesCache.containsKey(routine.id))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Exercices complétés: ${userRoutine.exercisesCompleted.values.where((v) => v).length}/${userRoutine.exercisesCompleted.length}',
+                      'Exercices: ${_exercisesCache[routine.id]?.length ?? 0}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(
-                      value: userRoutine.exercisesCompleted.isEmpty 
-                          ? 0.0 
-                          : userRoutine.exercisesCompleted.values.where((v) => v).length / userRoutine.exercisesCompleted.length,
-                      backgroundColor: Colors.grey[200],
-                      color: statusColor,
-                      minHeight: 8,
-                      borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _exercisesCache[routine.id]?.map((exercise) => 
+                        Chip(
+                          label: Text(exercise.name),
+                          backgroundColor: Colors.blue.withOpacity(0.1),
+                        )
+                      ).toList() ?? [],
                     ),
                   ],
                 ),
@@ -688,12 +638,7 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
                   TextButton.icon(
                     onPressed: () {
                       // Afficher les détails de la routine
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Fonctionnalité à implémenter: Voir les détails'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
+                      _showRoutineDetailsDialog(userRoutine);
                     },
                     icon: const Icon(Icons.visibility, size: 16),
                     label: const Text('Détails'),
@@ -703,6 +648,84 @@ class _RoutineValidationScreenState extends State<RoutineValidationScreen> with 
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  void _showRoutineDetailsDialog(UserRoutine userRoutine) {
+    final routine = _routinesCache[userRoutine.routineId];
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(routine?.name ?? 'Détails de la routine'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Utilisateur: ${_getUserName(userRoutine.userId)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text('Statut: ${userRoutine.status}'),
+              const SizedBox(height: 8),
+              Text('Date d\'assignation: ${DateFormat('dd/MM/yyyy').format(userRoutine.assignedDate)}'),
+              if (userRoutine.completionDate != null)
+                Text('Date de complétion: ${DateFormat('dd/MM/yyyy').format(userRoutine.completionDate!)}'),
+              const SizedBox(height: 16),
+              
+              if (routine?.description != null) ...[
+                const Text('Description:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(routine!.description),
+                const SizedBox(height: 16),
+              ],
+              
+              if (routine != null && _exercisesCache.containsKey(routine.id)) ...[
+                const Text('Exercices:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                ..._exercisesCache[routine.id]!.map((exercise) => 
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.fitness_center, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${exercise.name} - ${exercise.description}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                ),
+              ],
+              
+              if (userRoutine.feedback != null && userRoutine.feedback!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Commentaire:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(userRoutine.feedback!),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
       ),
     );
   }

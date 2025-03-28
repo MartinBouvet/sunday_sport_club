@@ -105,4 +105,18 @@ class SupabaseCourseDatasource {
         .order('date');
     return response;
   }
+
+  Future<List<Map<String, dynamic>>> getRecentCourses(int maxCourses) async {
+  try {
+    final response = await _client
+        .from('courses')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(maxCourses);
+
+    return List<Map<String, dynamic>>.from(response);
+  } catch (e) {
+    rethrow;
+  }
+}
 }

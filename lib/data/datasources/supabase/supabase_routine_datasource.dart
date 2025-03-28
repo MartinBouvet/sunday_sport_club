@@ -303,4 +303,29 @@ class SupabaseRoutineDatasource {
       );
     }
   }
+  Future<int> getPendingValidationCount() async {
+  try {
+    final response = await _client
+        .from('routines')
+        .select('id')
+        .eq('status', 'pending_validation');
+
+    return response.count ?? 0;
+  } catch (e) {
+    rethrow;
+  }
+}
+Future<bool> isValidatedByCoach(String routineId) async {
+  try {
+    final response = await _client
+        .from('user_routines')
+        .select('is_validated_by_coach')
+        .eq('routine_id', routineId)
+        .single();
+
+    return response['is_validated_by_coach'] ?? false;
+  } catch (e) {
+    rethrow;
+  }
+}
 }

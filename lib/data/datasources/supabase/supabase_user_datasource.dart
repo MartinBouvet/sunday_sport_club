@@ -57,4 +57,27 @@ class SupabaseUserDatasource {
   Future<void> updateUser(String userId, Map<String, dynamic> data) async {
     await _client.from('profiles').update(data).eq('id', userId);
   }
+
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+  try {
+    final response = await _client.from('profiles').select();
+    return List<Map<String, dynamic>>.from(response);
+  } catch (e) {
+    rethrow;
+  }
+}
+
+Future<List<Map<String, dynamic>>> getRecentUsers(int maxUsers) async {
+  try {
+    final response = await _client
+        .from('profiles')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(maxUsers);
+
+    return List<Map<String, dynamic>>.from(response);
+  } catch (e) {
+    rethrow;
+  }
+}
 }

@@ -115,4 +115,13 @@ class CourseRepository {
       return false;
     }
   }
+
+  Future<List<Course>> getRecentCourses(int maxCourses) async {
+  try {
+    final coursesData = await _datasource.getRecentCourses(maxCourses);
+    return coursesData.map((data) => Course.fromJson(data)).toList();
+  } catch (e) {
+    return [];
+  }
+}
 }

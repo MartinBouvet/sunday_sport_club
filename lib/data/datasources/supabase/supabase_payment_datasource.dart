@@ -108,4 +108,18 @@ class SupabasePaymentDatasource {
       'individual_course_total': individualCourseTotal,
     };
   }
+
+  Future<List<Map<String, dynamic>>> getRecentPayments(int limit) async {
+  try {
+    final response = await _client
+        .from('payments')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    return List<Map<String, dynamic>>.from(response);
+  } catch (e) {
+    rethrow;
+  }
+}
 }

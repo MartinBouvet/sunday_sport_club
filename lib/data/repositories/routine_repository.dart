@@ -138,4 +138,18 @@ class RoutineRepository {
       rethrow;
     }
   }
+  Future<int> getPendingValidationCount() async {
+  try {
+    return await _datasource.getPendingValidationCount();
+  } catch (e) {
+    return 0;
+  }
+}
+Future<bool> isValidatedByCoach(String routineId) async {
+  try {
+    return await _datasource.isValidatedByCoach(routineId);
+  } catch (e) {
+    return false;
+  }
+}
 }

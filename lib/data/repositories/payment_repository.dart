@@ -38,4 +38,20 @@ class PaymentRepository {
       return [];
     }
   }
+  Future<Map<String, dynamic>> getPaymentStatistics() async {
+  try {
+    return await _datasource.getPaymentStatistics();
+  } catch (e) {
+    return {};
+  }
+}
+
+Future<List<Payment>> getRecentPayments(int limit) async {
+  try {
+    final paymentsData = await _datasource.getRecentPayments(limit);
+    return paymentsData.map((data) => Payment.fromJson(data)).toList();
+  } catch (e) {
+    return [];
+  }
+}
 }

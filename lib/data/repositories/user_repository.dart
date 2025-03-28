@@ -34,4 +34,22 @@ class UserRepository {
   Future<void> updateUser(String userId, Map<String, dynamic> data) async {
     await _datasource.updateUser(userId, data);
   }
+
+  Future<List<User>> getAllUsers() async {
+    try {
+      final usersData = await _datasource.getAllUsers();
+      return usersData.map((user) => User.fromJson(user)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<User>> getRecentUsers(int maxUsers) async {
+  try {
+    final usersData = await _datasource.getRecentUsers(maxUsers);
+    return usersData.map((data) => User.fromJson(data)).toList();
+  } catch (e) {
+    return [];
+  }
+}
 }
