@@ -236,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       ElevatedButton(
                         onPressed: () {
-                          _emailController.text = 'coach@sundaysport.club';
+                          _emailController.text = 'baptiste-michaud@outlook.com';
                           _passwordController.text = 'admin123';
                         },
                         style: ElevatedButton.styleFrom(

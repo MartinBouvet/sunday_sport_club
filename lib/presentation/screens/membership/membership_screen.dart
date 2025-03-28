@@ -144,6 +144,11 @@ class _MembershipScreenState extends State<MembershipScreen> with SingleTickerPr
             Tab(text: 'Carnets actifs'),
             Tab(text: 'Historique'),
           ],
+          labelColor: Colors.white, // Couleur du texte sélectionné
+    unselectedLabelColor: Colors.white.withOpacity(0.7), // Couleur du texte non sélectionné
+    labelStyle: const TextStyle(fontWeight: FontWeight.bold), // Texte en gras quand sélectionné
+    indicatorColor: Colors.white, // Couleur de l'indicateur (ligne sous l'onglet)
+    indicatorWeight: 3.0,
         ),
       ),
       body: _isLoading 

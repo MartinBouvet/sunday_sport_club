@@ -107,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3, // Onglet actif (Routines)
+        currentIndex: 3, // Onglet actif (Profil)
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: Colors.blue,
@@ -151,6 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
               break;
             case 3:
+              // Déjà sur l'écran de profil
               break;
           }
         },
@@ -355,23 +356,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 Center(
-                                  child: AppButton(
-                                    text: 'Modifier mes informations',
-                                    onPressed: () {
-                                      // Naviguer vers la page d'édition du profil
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const SettingsScreen(),
+                                  child: Card(
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        // Naviguer vers la page d'édition du profil
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const SettingsScreen(),
+                                          ),
+                                        ).then((_) {
+                                          // Rafraîchir les données au retour
+                                          _loadUserData();
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.withOpacity(0.1),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.edit, color: Colors.blue),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Text(
+                                              'Modifier mes informations',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ).then((_) {
-                                        // Rafraîchir les données au retour
-                                        _loadUserData();
-                                      });
-                                    },
-                                    type: AppButtonType.outline,
-                                    size: AppButtonSize.medium,
-                                    icon: Icons.edit,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -402,8 +430,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    AppButton(
-                                      text: 'Détails',
+                                    TextButton.icon(
                                       onPressed: () {
                                         Navigator.push(
                                           context,
@@ -412,9 +439,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           ),
                                         );
                                       },
-                                      type: AppButtonType.text,
-                                      size: AppButtonSize.small,
-                                      icon: Icons.arrow_forward,
+                                      icon: const Icon(Icons.arrow_forward, size: 16),
+                                      label: const Text('Détails'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: Theme.of(context).colorScheme.primary,
+                                        textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -449,22 +479,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 
                                 const SizedBox(height: 16),
                                 Center(
-                                  child: AppButton(
-                                    text: 'Mettre à jour mes statistiques',
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const StatsScreen(),
+                                  child: Card(
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const StatsScreen(),
+                                          ),
+                                        ).then((_) {
+                                          // Rafraîchir les données au retour
+                                          _loadUserData();
+                                        });
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.orange.withOpacity(0.1),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.update, color: Colors.orange),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Text(
+                                              'Mettre à jour mes statistiques',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ).then((_) {
-                                        // Rafraîchir les données au retour
-                                        _loadUserData();
-                                      });
-                                    },
-                                    type: AppButtonType.outline,
-                                    size: AppButtonSize.medium,
-                                    icon: Icons.update,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -552,21 +609,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 16),
-                                  AppButton(
-                                    text: 'Tableau de bord administrateur',
-                                    onPressed: () {
-                                      // Naviguer vers le tableau de bord administrateur
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const AdminDashboardScreen(), // À implémenter
+                                  Card(
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                                      leading: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.withOpacity(0.2),
+                                          shape: BoxShape.circle,
                                         ),
-                                      );
-                                    },
-                                    type: AppButtonType.primary,
-                                    size: AppButtonSize.medium,
-                                    fullWidth: true,
-                                    icon: Icons.dashboard,
+                                        child: const Icon(Icons.dashboard, color: Colors.amber),
+                                      ),
+                                      title: const Text(
+                                        'Tableau de bord administrateur',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                                      onTap: () {
+                                        // Naviguer vers le tableau de bord administrateur
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => const AdminDashboardScreen(),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),
@@ -576,13 +651,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 24),
                         
                         // Bouton de déconnexion
-                        AppButton(
-                          text: 'Se déconnecter',
-                          onPressed: _logout,
-                          type: AppButtonType.outline,
-                          size: AppButtonSize.large,
-                          fullWidth: true,
-                          icon: Icons.logout,
+                        Card(
+                          margin: const EdgeInsets.symmetric(vertical: 6.0),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.logout, color: Colors.red),
+                            ),
+                            title: const Text(
+                              'Déconnexion',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            onTap: () {
+                              // Afficher une boîte de dialogue de confirmation
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Déconnexion'),
+                                  content: const Text('Êtes-vous sûr de vouloir vous déconnecter ?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Annuler'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                        authProvider.logout(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: const Text('Déconnexion'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
                         
                         const SizedBox(height: 32),
@@ -757,4 +877,3 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 }
-                              

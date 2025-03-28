@@ -159,10 +159,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              // Déconnexion
+              // Déconnexion avec redirection vers l'écran de connexion
               final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              authProvider.logout();
-              Navigator.of(context).pop();
+              authProvider.logout(context);
             },
             tooltip: 'Déconnexion',
           ),
@@ -829,10 +828,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             leading: const Icon(Icons.logout),
             title: const Text('Déconnexion'),
             onTap: () {
+              // Fermer le drawer d'abord
               Navigator.pop(context);
+              // Puis déconnexion avec redirection
               final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              authProvider.logout();
-              Navigator.of(context).pop();
+              authProvider.logout(context);
             },
           ),
         ],

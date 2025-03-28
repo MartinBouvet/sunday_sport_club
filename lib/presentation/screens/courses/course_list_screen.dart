@@ -118,6 +118,11 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
             Tab(text: 'Semaine prochaine'),
             Tab(text: 'Mois prochain'),
           ],
+          labelColor: Colors.white, // Couleur du texte sélectionné
+    unselectedLabelColor: Colors.white.withOpacity(0.7), // Couleur du texte non sélectionné
+    labelStyle: const TextStyle(fontWeight: FontWeight.bold), // Texte en gras quand sélectionné
+    indicatorColor: Colors.white, // Couleur de l'indicateur (ligne sous l'onglet)
+    indicatorWeight: 3.0,
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(

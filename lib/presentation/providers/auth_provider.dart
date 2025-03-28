@@ -3,6 +3,7 @@ import '../../domain/services/auth_service.dart';
 import '../../data/models/user.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/datasources/supabase/shared_prefs_helper.dart';
+import '../../presentation/screens/auth/login_screen.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -38,13 +39,14 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = e.toString();
+      debugPrint("Erreur d'initialisation AuthProvider: $e");
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  Future<void> _loadUserData() async {
+  Future<User?> _loadUserData() async {
     try {
       final user = await _authService.getCurrentUser();
       if (user != null) {
@@ -55,11 +57,15 @@ class AuthProvider extends ChangeNotifier {
           await SharedPrefsHelper.saveUserRole(user.role);
         }
         
+        debugPrint("Utilisateur chargé avec succès. Rôle: ${user.role}");
         notifyListeners();
+        return user;
       }
     } catch (e) {
       _errorMessage = "Erreur lors du chargement des données utilisateur: ${e.toString()}";
+      debugPrint(_errorMessage);
     }
+    return null;
   }
 
   Future<bool> login(String email, String password) async {
@@ -72,6 +78,9 @@ class AuthProvider extends ChangeNotifier {
       
       if (user != null) {
         _currentUser = user;
+        
+        // Vérifier et logger le rôle de l'utilisateur
+        debugPrint("Connexion réussie - Rôle utilisateur: ${user.role}");
         
         // Sauvegarder les infos utilisateur
         await SharedPrefsHelper.saveUserId(user.id);
@@ -90,6 +99,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       _errorMessage = e.toString();
+      debugPrint("Erreur de connexion: $_errorMessage");
       _isLoading = false;
       notifyListeners();
       return false;
@@ -144,7 +154,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> logout() async {
+  Future<bool> logout([BuildContext? context]) async {
     _isLoading = true;
     notifyListeners();
 
@@ -157,21 +167,27 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = null;
       _isLoading = false;
       notifyListeners();
+      
+      // Si un contexte est fourni, rediriger vers l'écran de connexion
+      if (context != null) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false, // Supprime toutes les routes de l'historique
+        );
+      }
+      
+      return true;
     } catch (e) {
       _errorMessage = e.toString();
+      debugPrint("Erreur de déconnexion: $_errorMessage");
       _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
   // Charge ou rafraîchit les données de l'utilisateur depuis le serveur
   Future<void> loadUserData() async {
-    if (!isAuthenticated) {
-      _errorMessage = "Aucun utilisateur connecté";
-      notifyListeners();
-      return;
-    }
-    
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -180,6 +196,7 @@ class AuthProvider extends ChangeNotifier {
       await _loadUserData();
     } catch (e) {
       _errorMessage = "Erreur lors du chargement des données utilisateur: ${e.toString()}";
+      debugPrint(_errorMessage);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -198,10 +215,12 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = await _userRepository.getUser(userId);
       
       if (_currentUser != null) {
+        debugPrint("Données utilisateur rafraîchies - Rôle: ${_currentUser!.role}");
         await SharedPrefsHelper.saveUserRole(_currentUser!.role);
       }
     } catch (e) {
       _errorMessage = "Erreur lors du rafraîchissement des données: ${e.toString()}";
+      debugPrint(_errorMessage);
     } finally {
       _isLoading = false;
       notifyListeners();
