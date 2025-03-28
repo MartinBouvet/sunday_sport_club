@@ -6,7 +6,6 @@ import '../../../core/widgets/error_display.dart';
 import '../../../data/models/routine.dart';
 import '../../../data/models/exercise.dart';
 import '../../providers/routine_provider.dart';
-import '../../providers/auth_provider.dart';
 import 'routine_execution_screen.dart';
 
 class RoutineDetailScreen extends StatefulWidget {

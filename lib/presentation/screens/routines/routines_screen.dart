@@ -114,11 +114,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                   break;
                 case 1: // En cours
                   filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'pending' || routine.status == 'in_progress').toList();
+                    routine.status == 'pending' || routine.status == 'en cours').toList();
                   break;
                 case 2: // Terminées
                   filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'completed' || routine.status == 'validated').toList();
+                    routine.status == 'completed' || routine.status == 'validé').toList();
                   break;
               }
 
