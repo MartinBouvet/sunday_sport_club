@@ -26,15 +26,24 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabSelection); // Ajout de l'écouteur manquant
     _loadRoutines();
+  }
+
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        // Force le rafraîchissement de l'interface utilisateur lors du changement d'onglet
+      });
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection); // Nettoyage de l'écouteur
     _tabController.dispose();
     super.dispose();
   }
-
   Future<void> _loadRoutines() async {
     setState(() {
       _isLoading = true;
@@ -119,11 +128,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                   break;
                 case 1: // En cours
                   filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'pending' || routine.status == 'en cours').toList();
+                    routine.status == 'assigné' || routine.status == 'en cours').toList();
                   break;
                 case 2: // Terminées
                   filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'completed' || routine.status == 'validé').toList();
+                    routine.status == 'terminé' || routine.status == 'validé').toList();
                   break;
               }
 
