@@ -29,7 +29,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_handleTabSelection);
     
-    // Chargement asynchrone à l'initialisation du widget, PAS dans le build
+    // Chargement asynchrone à l'initialisation du widget
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadRoutines();
     });
@@ -64,10 +64,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       if (authProvider.currentUser != null) {
         debugPrint("Récupération des routines pour l'utilisateur: ${authProvider.currentUser!.id}");
         
-        // Chargement des routines disponibles d'abord (moins susceptible d'échouer)
+        // Chargement des routines disponibles d'abord (toutes les routines) 
         await routineProvider.fetchAvailableRoutines();
         
-        // Puis chargement des routines de l'utilisateur
+        // Puis chargement des routines de l'utilisateur (pour les onglets En cours et Terminées)
         await routineProvider.fetchUserRoutines(authProvider.currentUser!.id);
       }
     } catch (e) {
@@ -90,7 +90,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Mes routines'),
+            Tab(text: 'Mes Routines'),
             Tab(text: 'En cours'),
             Tab(text: 'Terminées'),
           ],
@@ -129,32 +129,36 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                 );
               }
 
-              // Filtrer les routines en fonction de l'onglet sélectionné
-              final userRoutines = routineProvider.userRoutines;
-              List<UserRoutine> filteredRoutines = [];
-              
-              // Utiliser _currentTabIndex au lieu de _tabController.index pour éviter
-              // les appels setState pendant le build
+              // Déterminer le contenu à afficher en fonction de l'onglet sélectionné
               switch (_currentTabIndex) {
-                case 0: // Toutes
-                  filteredRoutines = userRoutines;
-                  break;
-                case 1: // En cours
-                  filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'pending' || routine.status == 'in_progress').toList();
-                  break;
-                case 2: // Terminées
-                  filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'completed' || routine.status == 'validated').toList();
-                  break;
+                case 0: // Toutes les routines disponibles
+                  final availableRoutines = routineProvider.availableRoutines;
+                  if (availableRoutines.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildAvailableRoutinesList(availableRoutines, routineProvider);
+                
+                case 1: // Routines en cours de l'utilisateur
+                  final userRoutinesInProgress = routineProvider.userRoutines
+                    .where((routine) => routine.status == 'pending' || routine.status == 'in_progress')
+                    .toList();
+                  if (userRoutinesInProgress.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildUserRoutinesList(userRoutinesInProgress, routineProvider);
+                
+                case 2: // Routines terminées de l'utilisateur
+                  final userRoutinesCompleted = routineProvider.userRoutines
+                    .where((routine) => routine.status == 'completed' || routine.status == 'validated')
+                    .toList();
+                  if (userRoutinesCompleted.isEmpty) {
+                    return _buildEmptyState();
+                  }
+                  return _buildUserRoutinesList(userRoutinesCompleted, routineProvider);
+                
+                default:
+                  return _buildEmptyState();
               }
-
-              return RefreshIndicator(
-                onRefresh: _loadRoutines,
-                child: filteredRoutines.isEmpty 
-                  ? _buildEmptyState() 
-                  : _buildRoutinesList(filteredRoutines, routineProvider),
-              );
             },
           );
         },
@@ -217,14 +221,12 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
     );
   }
 
-  // Reste du code inchangé...
-  
   Widget _buildEmptyState() {
     String message = '';
     
     switch (_currentTabIndex) {
       case 0:
-        message = 'Aucune routine assignée actuellement';
+        message = 'Aucune routine disponible actuellement';
         break;
       case 1:
         message = 'Vous n\'avez pas de routines en cours';
@@ -266,173 +268,350 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildRoutinesList(List<UserRoutine> routines, RoutineProvider provider) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: routines.length,
-      itemBuilder: (context, index) {
-        final userRoutine = routines[index];
-        
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => RoutineDetailScreen(
-                    routineId: userRoutine.routineId,
-                    userRoutineId: userRoutine.id,
+  // Liste des routines disponibles (toutes les routines)
+  Widget _buildAvailableRoutinesList(List<Routine> routines, RoutineProvider provider) {
+    return RefreshIndicator(
+      onRefresh: _loadRoutines,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: routines.length,
+        itemBuilder: (context, index) {
+          final routine = routines[index];
+          
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RoutineDetailScreen(
+                      routineId: routine.id,
+                    ),
                   ),
-                ),
-              ).then((_) => _loadRoutines());
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Routine title and status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "Routine #${index + 1}",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                ).then((_) => _loadRoutines());
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Titre de la routine
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            routine.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      _buildStatusBadge(userRoutine.status),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // Date
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 14,
+                        // Indicateur de difficulté
+                        _buildDifficultyBadge(routine.difficulty),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Description de la routine
+                    Text(
+                      routine.description,
+                      style: TextStyle(
+                        fontSize: 14,
                         color: Colors.grey[600],
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Assignée le: ${_formatDate(userRoutine.assignedDate)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Progress bar for routine completion
-                  if (userRoutine.status == 'in_progress' || userRoutine.status == 'pending')
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Informations supplémentaires
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Progression',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                              ),
+                            Icon(
+                              Icons.timer,
+                              size: 16,
+                              color: Colors.grey[600],
                             ),
+                            const SizedBox(width: 4),
                             Text(
-                              userRoutine.status == 'in_progress' ? '50%' : '0%',
+                              '${routine.estimatedDurationMinutes} min',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[600],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        LinearProgressIndicator(
-                          value: userRoutine.status == 'in_progress' ? 0.5 : 0.0,
-                          minHeight: 8,
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary,
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.fitness_center,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${routine.exerciseIds.length} exercices',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Bouton de démarrage
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RoutineDetailScreen(
+                                routineId: routine.id,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.visibility, size: 16),
+                        label: const Text('Voir les détails'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Liste des routines de l'utilisateur (en cours ou terminées)
+  Widget _buildUserRoutinesList(List<UserRoutine> routines, RoutineProvider provider) {
+    return RefreshIndicator(
+      onRefresh: _loadRoutines,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: routines.length,
+        itemBuilder: (context, index) {
+          final userRoutine = routines[index];
+          
+          // Récupérer les détails de la routine associée
+          final associatedRoutine = provider.availableRoutines
+              .firstWhere((r) => r.id == userRoutine.routineId, 
+                           orElse: () => Routine(
+                            id: 'unknown',
+                            name: 'Routine inconnue',
+                            description: 'Détails non disponibles',
+                            difficulty: 'Intermédiaire',
+                            estimatedDurationMinutes: 0,
+                            exerciseIds: [],
+                            exerciseDetails: {},
+                            createdBy: 'system', // Paramètre obligatoire manquant
+                            createdAt: DateTime.now(), // Paramètre obligatoire manquant
+                            isPublic: true, // Paramètre obligatoire manquant
+                          ));
+          
+          return Card(
+            elevation: 2,
+            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RoutineDetailScreen(
+                      routineId: userRoutine.routineId,
+                      userRoutineId: userRoutine.id,
+                    ),
+                  ),
+                ).then((_) => _loadRoutines());
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Titre et statut
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            associatedRoutine.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        _buildStatusBadge(userRoutine.status),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Date d'assignation
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Assignée le: ${_formatDate(userRoutine.assignedDate)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
                           ),
                         ),
                       ],
                     ),
-                  
-                  if (userRoutine.completionDate != null)
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Description de la routine
                     Text(
-                      'Terminée le: ${_formatDate(userRoutine.completionDate!)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
+                      associatedRoutine.description,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  // Action buttons based on status
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (userRoutine.status == 'pending' || userRoutine.status == 'in_progress')
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RoutineDetailScreen(
-                                  routineId: userRoutine.routineId,
-                                  userRoutineId: userRoutine.id,
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Barre de progression pour les routines en cours
+                    if (userRoutine.status == 'in_progress' || userRoutine.status == 'pending')
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Progression',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[700],
                                 ),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.play_arrow, size: 16),
-                          label: const Text('Commencer'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).colorScheme.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              Text(
+                                userRoutine.status == 'in_progress' ? '50%' : '0%',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          LinearProgressIndicator(
+                            value: userRoutine.status == 'in_progress' ? 0.5 : 0.0,
+                            minHeight: 8,
+                            backgroundColor: Colors.grey[200],
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    
+                    // Date de complétion pour les routines terminées
+                    if (userRoutine.completionDate != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Terminée le: ${_formatDate(userRoutine.completionDate!)}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
-                      
-                      if (userRoutine.status == 'completed' || userRoutine.status == 'validated')
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RoutineDetailScreen(
-                                  routineId: userRoutine.routineId,
-                                  userRoutineId: userRoutine.id,
+                      ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Boutons d'action
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (userRoutine.status == 'pending' || userRoutine.status == 'in_progress')
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RoutineDetailScreen(
+                                    routineId: userRoutine.routineId,
+                                    userRoutineId: userRoutine.id,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.visibility, size: 16),
-                          label: const Text('Détails'),
-                        ),
-                    ],
-                  ),
-                ],
+                              );
+                            },
+                            icon: const Icon(Icons.play_arrow, size: 16),
+                            label: const Text('Commencer'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                        
+                        if (userRoutine.status == 'completed' || userRoutine.status == 'validated')
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RoutineDetailScreen(
+                                    routineId: userRoutine.routineId,
+                                    userRoutineId: userRoutine.id,
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.visibility, size: 16),
+                            label: const Text('Détails'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -472,6 +651,41 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         label,
         style: const TextStyle(
           color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildDifficultyBadge(String difficulty) {
+    Color color;
+    
+    switch (difficulty.toLowerCase()) {
+      case 'facile':
+        color = Colors.green;
+        break;
+      case 'intermédiaire':
+        color = Colors.orange;
+        break;
+      case 'difficile':
+        color = Colors.red;
+        break;
+      default:
+        color = Colors.grey;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        difficulty,
+        style: TextStyle(
+          color: color,
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
