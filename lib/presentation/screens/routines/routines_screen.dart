@@ -17,7 +17,8 @@ class RoutinesScreen extends StatefulWidget {
   State<RoutinesScreen> createState() => _RoutinesScreenState();
 }
 
-class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProviderStateMixin {
+class _RoutinesScreenState extends State<RoutinesScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
 
@@ -25,7 +26,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
+
     // Chargement des routines
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadRoutines();
@@ -45,12 +46,15 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
+      final routineProvider = Provider.of<RoutineProvider>(
+        context,
+        listen: false,
+      );
 
       if (authProvider.currentUser != null) {
         // Charger les routines disponibles
         await routineProvider.fetchAvailableRoutines();
-        
+
         // Charger les routines de l'utilisateur
         await routineProvider.fetchUserRoutines(authProvider.currentUser!.id);
       }
@@ -86,7 +90,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.currentUser;
-          
+
           if (user == null) {
             return const Center(
               child: Text('Veuillez vous connecter pour accéder à cette page'),
@@ -114,27 +118,37 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
               // Filtrer les routines selon l'onglet
               var userRoutines = routineProvider.userRoutines;
               List filteredRoutines = [];
-              
+
               switch (_tabController.index) {
                 case 0: // Toutes
                   filteredRoutines = userRoutines;
                   break;
                 case 1: // En cours
-                  filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'pending' || routine.status == 'in_progress'
-                  ).toList();
+                  filteredRoutines =
+                      userRoutines
+                          .where(
+                            (routine) =>
+                                routine.status == 'pending' ||
+                                routine.status == 'in_progress',
+                          )
+                          .toList();
                   break;
                 case 2: // Terminées
-                  filteredRoutines = userRoutines.where((routine) => 
-                    routine.status == 'completed' || routine.status == 'validated'
-                  ).toList();
+                  filteredRoutines =
+                      userRoutines
+                          .where(
+                            (routine) =>
+                                routine.status == 'completed' ||
+                                routine.status == 'validated',
+                          )
+                          .toList();
                   break;
               }
 
               if (filteredRoutines.isEmpty) {
                 return _buildEmptyState();
               }
-              
+
               return RefreshIndicator(
                 onRefresh: _loadRoutines,
                 child: ListView.builder(
@@ -143,8 +157,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                   itemBuilder: (context, index) {
                     final userRoutine = filteredRoutines[index];
                     final routine = userRoutine.routine;
-                    final routineName = routine?.name ?? "Routine #${index + 1}";
-                    
+                    final routineName =
+                        routine?.name ?? "Routine #${index + 1}";
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
                       elevation: 2,
@@ -156,10 +171,11 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RoutineDetailScreen(
-                                routineId: userRoutine.routineId,
-                                userRoutineId: userRoutine.id,
-                              ),
+                              builder:
+                                  (context) => RoutineDetailScreen(
+                                    routineId: userRoutine.routineId,
+                                    userRoutineId: userRoutine.id,
+                                  ),
                             ),
                           ).then((_) => _loadRoutines());
                         },
@@ -185,7 +201,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              
+
                               // Description
                               if (routine?.description != null)
                                 Text(
@@ -198,7 +214,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                   ),
                                 ),
                               const SizedBox(height: 8),
-                              
+
                               // Date
                               Row(
                                 children: [
@@ -217,16 +233,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                   ),
                                 ],
                               ),
-                              
+
                               const SizedBox(height: 16),
-                              
+
                               // Indicateur de progression
-                              if (userRoutine.status == 'in_progress' || userRoutine.status == 'pending')
+                              if (userRoutine.status == 'in_progress' ||
+                                  userRoutine.status == 'pending')
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           'Progression',
@@ -236,7 +254,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                           ),
                                         ),
                                         Text(
-                                          userRoutine.status == 'in_progress' ? '50%' : '0%',
+                                          userRoutine.status == 'in_progress'
+                                              ? '50%'
+                                              : '0%',
                                           style: TextStyle(
                                             fontSize: 14,
                                             color: Colors.grey[700],
@@ -247,7 +267,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                     ),
                                     const SizedBox(height: 4),
                                     LinearProgressIndicator(
-                                      value: userRoutine.status == 'in_progress' ? 0.5 : 0.0,
+                                      value:
+                                          userRoutine.status == 'in_progress'
+                                              ? 0.5
+                                              : 0.0,
                                       minHeight: 8,
                                       backgroundColor: Colors.grey[200],
                                       valueColor: AlwaysStoppedAnimation<Color>(
@@ -257,7 +280,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                     ),
                                   ],
                                 ),
-                              
+
                               if (userRoutine.completionDate != null)
                                 Text(
                                   'Terminée le: ${DateFormat('dd/MM/yyyy').format(userRoutine.completionDate!)}',
@@ -266,49 +289,71 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                                     fontStyle: FontStyle.italic,
                                   ),
                                 ),
-                              
+
                               const SizedBox(height: 8),
-                              
+
                               // Actions
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  if (userRoutine.status == 'pending' || userRoutine.status == 'in_progress')
+                                  if (userRoutine.status == 'pending' ||
+                                      userRoutine.status == 'in_progress')
                                     ElevatedButton.icon(
                                       onPressed: () {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (context) => RoutineDetailScreen(
-                                              routineId: userRoutine.routineId,
-                                              userRoutineId: userRoutine.id,
-                                            ),
+                                            builder:
+                                                (context) =>
+                                                    RoutineDetailScreen(
+                                                      routineId:
+                                                          userRoutine.routineId,
+                                                      userRoutineId:
+                                                          userRoutine.id,
+                                                    ),
                                           ),
                                         );
                                       },
-                                      icon: const Icon(Icons.play_arrow, size: 16),
+                                      icon: const Icon(
+                                        Icons.play_arrow,
+                                        size: 16,
+                                      ),
                                       label: const Text('Commencer'),
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Theme.of(context).colorScheme.primary,
+                                        backgroundColor:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
                                       ),
                                     ),
-                                  
-                                  if (userRoutine.status == 'completed' || userRoutine.status == 'validated')
+
+                                  if (userRoutine.status == 'completed' ||
+                                      userRoutine.status == 'validated')
                                     TextButton.icon(
                                       onPressed: () {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (context) => RoutineDetailScreen(
-                                              routineId: userRoutine.routineId,
-                                              userRoutineId: userRoutine.id,
-                                            ),
+                                            builder:
+                                                (context) =>
+                                                    RoutineDetailScreen(
+                                                      routineId:
+                                                          userRoutine.routineId,
+                                                      userRoutineId:
+                                                          userRoutine.id,
+                                                    ),
                                           ),
                                         );
                                       },
-                                      icon: const Icon(Icons.visibility, size: 16),
+                                      icon: const Icon(
+                                        Icons.visibility,
+                                        size: 16,
+                                      ),
                                       label: const Text('Détails'),
                                     ),
                                 ],
@@ -329,10 +374,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         currentIndex: 1, // Routines
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
           BottomNavigationBarItem(
             icon: Icon(Icons.fitness_center),
             label: 'Routines',
@@ -341,10 +383,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
             icon: Icon(Icons.event_available),
             label: 'Cours',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
         onTap: (index) {
           switch (index) {
@@ -360,7 +399,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
             case 2:
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const CourseListScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const CourseListScreen(),
+                ),
               );
               break;
             case 3:
@@ -379,10 +420,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     String message = '';
-    
+
     switch (_tabController.index) {
       case 0:
         message = 'Aucune routine assignée actuellement';
@@ -394,43 +435,33 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         message = 'Vous n\'avez pas encore terminé de routines';
         break;
     }
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.fitness_center,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.fitness_center, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             message,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             'Les routines sont des programmes d\'entraînement personnalisés.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildStatusBadge(String status) {
     String label;
     Color color;
-    
+
     switch (status) {
       case 'pending':
         label = 'À faire';
@@ -452,7 +483,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         label = status;
         color = Colors.grey;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -469,3 +500,4 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       ),
     );
   }
+}

@@ -114,4 +114,59 @@ class SupabaseRoutineDatasource {
       throw Exception('Erreur création routine utilisateur: $e');
     }
   }
+
+  // Méthodes pour l'admin
+  Future<List<Map<String, dynamic>>> getPendingValidationRoutines() async {
+    try {
+      final response = await _client
+          .from('user_routines')
+          .select('*, routines(*), profiles(first_name, last_name)')
+          .eq('status', 'completed')
+          .is_('validated_by', null);
+
+      return response;
+    } catch (e) {
+      debugPrint('Erreur getPendingValidationRoutines: $e');
+      return [];
+    }
+  }
+
+  Future<void> validateUserRoutine(
+    String userRoutineId,
+    String coachId, {
+    String? feedback,
+  }) async {
+    try {
+      Map<String, dynamic> updateData = {
+        'status': 'validated',
+        'validated_by': coachId,
+        'feedback': feedback,
+      };
+
+      // Ajouter points d'expérience
+      await _client
+          .from('user_routines')
+          .update(updateData)
+          .eq('id', userRoutineId);
+
+      // Récupérer l'ID utilisateur depuis la routine
+      final userRoutine =
+          await _client
+              .from('user_routines')
+              .select('user_id')
+              .eq('id', userRoutineId)
+              .single();
+
+      final userId = userRoutine['user_id'];
+
+      // Ajouter l'expérience à l'utilisateur (25 points par routine)
+      await _client.rpc(
+        'add_user_experience',
+        params: {'user_id_param': userId, 'points_param': 25},
+      );
+    } catch (e) {
+      debugPrint('Erreur validateUserRoutine: $e');
+      throw Exception('Échec de validation: $e');
+    }
+  }
 }

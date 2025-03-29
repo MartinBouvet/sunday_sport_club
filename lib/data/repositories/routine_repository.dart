@@ -64,7 +64,7 @@ class RoutineRepository {
 
       // Assigner à l'utilisateur
       final userRoutineData = {
-        'user_id': userId,
+        'profile_id': userId,
         'routine_id': routineId,
         'assigned_date': DateTime.now().toIso8601String(),
         'status': 'pending',
@@ -74,6 +74,36 @@ class RoutineRepository {
     } catch (e) {
       debugPrint('Erreur createRoutineForUser: $e');
       return '';
+    }
+  }
+
+  // Méthodes ajoutées pour l'admin dashboard
+  Future<int> getPendingValidationCount() async {
+    try {
+      final pendingRoutines = await _datasource.getPendingValidationRoutines();
+      return pendingRoutines.length;
+    } catch (e) {
+      debugPrint('Erreur getPendingValidationCount: $e');
+      return 0;
+    }
+  }
+
+  // Valider une routine utilisateur (pour l'admin)
+  Future<bool> validateUserRoutine(
+    String userRoutineId,
+    String coachId, {
+    String? feedback,
+  }) async {
+    try {
+      await _datasource.validateUserRoutine(
+        userRoutineId,
+        coachId,
+        feedback: feedback,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Erreur validateUserRoutine: $e');
+      return false;
     }
   }
 }
