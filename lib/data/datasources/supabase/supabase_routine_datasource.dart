@@ -26,22 +26,48 @@ class SupabaseRoutineDatasource {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getUserRoutines(String userId) async {
-    try {
-      debugPrint('Récupération des routines pour utilisateur: $userId');
+Future<List<Map<String, dynamic>>> getUserRoutines(String userId) async {
+  try {
+    debugPrint('Récupération des routines pour utilisateur: $userId');
 
-      final response = await _client
-          .from('user_routines')
-          .select('*, routines(*)')
-          .eq('user_id', userId);
+    final response = await _client
+        .from('user_routines')
+        .select('*, routines(*)')
+        .eq('profile_id', userId);
 
-      debugPrint('Routines récupérées: ${response.length}');
-      return response;
-    } catch (e) {
-      debugPrint('Erreur getUserRoutines: $e');
-      return [];
+    debugPrint('Response brute: $response');
+    debugPrint('Type de response: ${response.runtimeType}');
+    
+    // Gestion adéquate du format de réponse
+    if (response is List) {
+      // Conversion sécurisée avec vérification de type
+      List<Map<String, dynamic>> typedResponse = [];
+      for (var item in response) {
+        if (item is Map<String, dynamic>) {
+          typedResponse.add(item);
+        } else {
+          // Conversion explicite si nécessaire
+          typedResponse.add(Map<String, dynamic>.from(item as Map));
+        }
+      }
+      return typedResponse;
+    } else if (response is Map && response.containsKey('data')) {
+      // Fallback pour le format alternatif (ancienne API)
+      var data = response['data'];
+      if (data is List) {
+        return List<Map<String, dynamic>>.from(
+          data.map((item) => item as Map<String, dynamic>)
+        );
+      }
     }
+    
+    // Retour par défaut si structure non reconnue
+    return [];
+  } catch (e) {
+    debugPrint('Erreur getUserRoutines: $e');
+    return [];
   }
+}
 
   Future<List<Map<String, dynamic>>> getRoutineExercises(
     String routineId,
@@ -80,29 +106,6 @@ class SupabaseRoutineDatasource {
     }
   }
 
-  // Créer une routine pour l'utilisateur (pour test)
-  Future<String> createTestRoutine() async {
-    try {
-      // Créer la routine
-      final routineData = {
-        'name': 'Routine Hebdomadaire',
-        'description': 'Exercices de base pour renforcer tout le corps',
-        'difficulty': 'intermédiaire',
-        'estimated_duration_minutes': 30,
-        'exercise_ids': ['ex1', 'ex2', 'ex3'],
-        'created_by': 'system',
-        'created_at': DateTime.now().toIso8601String(),
-        'is_public': true,
-      };
-
-      final routineResponse =
-          await _client.from('routines').insert(routineData).select();
-      return routineResponse[0]['id'];
-    } catch (e) {
-      debugPrint('Erreur createTestRoutine: $e');
-      throw Exception('Erreur création routine: $e');
-    }
-  }
 
   Future<String> createUserRoutine(Map<String, dynamic> userRoutineData) async {
     try {
@@ -145,4 +148,40 @@ class SupabaseRoutineDatasource {
     rethrow;
   }
 }
+Future<bool> validateUserRoutine(String userRoutineId, String adminId, String feedback, int xpPoints) async {
+    try {
+      // Mettre à jour le statut de la routine
+      await supabase
+          .from('user_routines')
+          .update({
+            'status': 'validated',
+            'validated_by': adminId,
+            'validation_date': DateTime.now().toIso8601String(),
+            'feedback': feedback,
+          })
+          .eq('id', userRoutineId);
+      
+      // Récupérer l'ID de l'utilisateur
+      final response = await supabase
+          .from('user_routines')
+          .select('user_id')
+          .eq('id', userRoutineId)
+          .single();
+      
+      final userId = response['user_id'];
+      
+      // Ajouter 25 points d'XP à l'utilisateur
+      await supabase
+          .from('profiles')
+          .update({
+            'experience_points': supabase.rpc('increment_xp', params: {'user_id': userId, 'amount': xpPoints})
+          })
+          .eq('id', userId);
+      
+      return true;
+    } catch (e) {
+      debugPrint('Erreur lors de la validation de la routine: $e');
+      return false;
+    }
+  }
 }

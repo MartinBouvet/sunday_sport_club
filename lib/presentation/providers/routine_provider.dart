@@ -38,17 +38,7 @@ class RoutineProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      debugPrint('Récupération des routines utilisateur: $userId');
       _userRoutines = await _routineRepository.getUserRoutines(userId);
-
-      if (_userRoutines.isEmpty) {
-        debugPrint('Aucune routine trouvée, création d\'une routine de test');
-        // Créer une routine de test si l'utilisateur n'en a pas
-        await _routineRepository.createRoutineForUser(userId);
-        // Récupérer à nouveau les routines
-        _userRoutines = await _routineRepository.getUserRoutines(userId);
-      }
-
       _setLoading(false);
     } catch (e) {
       _setError(

@@ -56,27 +56,6 @@ class RoutineRepository {
     }
   }
 
-  // Pour créer des données de test
-  Future<String> createRoutineForUser(String userId) async {
-    try {
-      // Créer routine
-      final routineId = await _datasource.createTestRoutine();
-
-      // Assigner à l'utilisateur
-      final userRoutineData = {
-        'user_id': userId,
-        'routine_id': routineId,
-        'assigned_date': DateTime.now().toIso8601String(),
-        'status': 'pending',
-      };
-
-      return await _datasource.createUserRoutine(userRoutineData);
-    } catch (e) {
-      debugPrint('Erreur createRoutineForUser: $e');
-      return '';
-    }
-  }
-
   Future<int> getPendingValidationCount() async {
   try {
     // Utiliser le datasource pour récupérer les routines en attente
@@ -92,4 +71,17 @@ class RoutineRepository {
     return 0;
   }
 }
+Future<bool> validateUserRoutine(
+    String userRoutineId, 
+    String adminId, 
+    String feedback,
+    int xpPoints,
+  ) async {
+    return await _datasource.validateUserRoutine(
+      userRoutineId,
+      adminId,
+      feedback,
+      xpPoints
+    );
+  }
 }

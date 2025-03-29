@@ -12,6 +12,9 @@ import '../profile/profile_screen.dart';
 import '../../../data/models/routine.dart';
 import '../../../data/models/user_routine.dart';
 
+int _currentTabIndex = 0;
+
+
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
 
@@ -27,6 +30,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabSelection);
     
     // Chargement asynchrone à l'initialisation du widget
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37,8 +41,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   @override
   void dispose() {
     _tabController.dispose();
+    _tabController.removeListener(_handleTabSelection);
     super.dispose();
   }
+
+  void _handleTabSelection() {
+  if (_tabController.indexIsChanging) {
+    setState(() {
+      _currentTabIndex = _tabController.index;
+    });
+    _loadRoutines();
+  }
+}
 
   Future<void> _loadRoutines() async {
     setState(() {
@@ -116,7 +130,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
               }
 
               // Déterminer le contenu à afficher en fonction de l'onglet sélectionné
-              switch (_currentTabIndex) {
+              switch (_tabController.index) {
                 case 0: // Toutes les routines disponibles
                   final availableRoutines = routineProvider.availableRoutines;
                   if (availableRoutines.isEmpty) {
@@ -375,7 +389,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                         icon: const Icon(Icons.visibility, size: 16),
                         label: const Text('Voir les détails'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
