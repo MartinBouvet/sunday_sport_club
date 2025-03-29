@@ -9,6 +9,8 @@ import 'routine_detail_screen.dart';
 import '../home/home_screen.dart';
 import '../courses/course_list_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../../data/models/routine.dart';
+import '../../../data/models/user_routine.dart';
 
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
@@ -52,7 +54,11 @@ class _RoutinesScreenState extends State<RoutinesScreen>
       );
 
       if (authProvider.currentUser != null) {
-        // Charger les routines disponibles
+        debugPrint(
+          "Récupération des routines pour l'utilisateur: ${authProvider.currentUser!.id}",
+        );
+
+        // Chargement des routines disponibles d'abord (toutes les routines)
         await routineProvider.fetchAvailableRoutines();
 
         // Charger les routines de l'utilisateur
@@ -77,7 +83,7 @@ class _RoutinesScreenState extends State<RoutinesScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Toutes'),
+            Tab(text: 'Mes Routines'),
             Tab(text: 'En cours'),
             Tab(text: 'Terminées'),
           ],
@@ -426,7 +432,7 @@ class _RoutinesScreenState extends State<RoutinesScreen>
 
     switch (_tabController.index) {
       case 0:
-        message = 'Aucune routine assignée actuellement';
+        message = 'Aucune routine disponible actuellement';
         break;
       case 1:
         message = 'Vous n\'avez pas de routines en cours';
