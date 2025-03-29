@@ -26,19 +26,39 @@ class Course {
   });
 
   factory Course.fromJson(Map<String, dynamic> json) {
-    return Course(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      type: json['type'],
-      date: DateTime.parse(json['date']),
-      startTime: json['start_time'],
-      endTime: json['end_time'],
-      capacity: json['capacity'],
-      currentParticipants: json['current_participants'],
-      status: json['status'],
-      coachId: json['coach_id'],
-    );
+    try {
+      return Course(
+        id: json['id']?.toString() ?? '',
+        title: json['title']?.toString() ?? '',
+        description: json['description']?.toString() ?? '',
+        type: json['type']?.toString() ?? 'collectif',
+        date:
+            json['date_time'] != null
+                ? DateTime.parse(json['date_time'])
+                : DateTime.now(),
+        startTime: _extractTime(json['date_time'], true),
+        endTime: _calculateEndTime(json['date_time'], json['duration']),
+        capacity: json['max_participants'] ?? 10,
+        currentParticipants: json['current_participants'] ?? 0,
+        status: json['is_cancelled'] == true ? 'cancelled' : 'available',
+        coachId: json['coach_id']?.toString() ?? '',
+      );
+    } catch (e) {
+      print("Error parsing Course: $e for data: $json");
+      return Course(
+        id: '',
+        title: 'Erreur',
+        description: '',
+        type: 'collectif',
+        date: DateTime.now(),
+        startTime: '00:00',
+        endTime: '01:00',
+        capacity: 0,
+        currentParticipants: 0,
+        status: 'error',
+        coachId: '',
+      );
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -83,5 +103,27 @@ class Course {
       status: status ?? this.status,
       coachId: coachId ?? this.coachId,
     );
+  }
+
+  static String _extractTime(String? dateTime, bool isStart) {
+    if (dateTime == null) return isStart ? '00:00' : '01:00';
+    try {
+      final dt = DateTime.parse(dateTime);
+      return "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return isStart ? '00:00' : '01:00';
+    }
+  }
+
+  static String _calculateEndTime(String? dateTime, dynamic duration) {
+    if (dateTime == null) return '01:00';
+    try {
+      final dt = DateTime.parse(dateTime);
+      final durationMinutes = duration is int ? duration : 60;
+      final endTime = dt.add(Duration(minutes: durationMinutes));
+      return "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+    } catch (e) {
+      return '01:00';
+    }
   }
 }

@@ -1,3 +1,4 @@
+// lib/presentation/screens/courses/course_list_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -28,7 +29,10 @@ class _CourseListScreenState extends State<CourseListScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_handleTabSelection);
-    _loadCourses();
+    // Utilisez WidgetsBinding.instance.addPostFrameCallback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCourses();
+    });
   }
 
   @override
@@ -57,6 +61,8 @@ class _CourseListScreenState extends State<CourseListScreen>
   }
 
   Future<void> _loadCourses() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
@@ -91,15 +97,17 @@ class _CourseListScreenState extends State<CourseListScreen>
         );
       }
 
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur lors du chargement des cours: $e'),

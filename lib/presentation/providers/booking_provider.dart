@@ -1,3 +1,4 @@
+// lib/presentation/providers/booking_provider.dart
 import 'package:flutter/material.dart';
 import '../../data/models/booking.dart';
 import '../../data/models/course.dart';
@@ -34,14 +35,28 @@ class BookingProvider extends ChangeNotifier {
     required DateTime endDate,
     String? type,
   }) async {
-    _setLoading(true);
-    _clearMessages();
+    // NE PAS notifier ici pendant le build
+    final currentIsLoading = _isLoading;
+    // Mettre à jour l'état local sans notifier
+    _isLoading = true;
+    _errorMessage = null;
+    _successMessage = null;
 
     try {
       _availableCourses = await _courseRepository.getAllCourses();
-      _setLoading(false);
+      _isLoading = false; // Mettre à jour l'état local sans notifier
+      // Notifier seulement si nous n'étions pas déjà en chargement
+      if (!currentIsLoading) {
+        notifyListeners();
+      }
     } catch (e) {
-      _setError('Erreur lors de la récupération des cours: ${e.toString()}');
+      _errorMessage =
+          'Erreur lors de la récupération des cours: ${e.toString()}';
+      _isLoading = false; // Mettre à jour l'état local sans notifier
+      // Notifier seulement si nous n'étions pas déjà en chargement
+      if (!currentIsLoading) {
+        notifyListeners();
+      }
     }
   }
 

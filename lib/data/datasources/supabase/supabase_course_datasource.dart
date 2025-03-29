@@ -4,9 +4,19 @@ import '../../../core/utils/supabase_client.dart';
 class SupabaseCourseDatasource {
   final SupabaseClient _client = supabase;
 
+  // Dans SupabaseCourseDatasource
   Future<List<Map<String, dynamic>>> getAllCourses() async {
-    final response = await _client.from('courses').select();
-    return response;
+    try {
+      print("Fetching courses from Supabase...");
+      final response = await _client.from('courses').select();
+      print("Received ${response.length} courses: $response");
+
+      // Conversion explicite du type
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print("Error fetching courses: $e");
+      return [];
+    }
   }
 
   Future<Map<String, dynamic>> getCourse(String courseId) async {
@@ -57,10 +67,12 @@ class SupabaseCourseDatasource {
   }
 
   Future<List<Map<String, dynamic>>> getAvailableCourses(
-      DateTime startDate, DateTime endDate) async {
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     final startDateIso = startDate.toIso8601String();
     final endDateIso = endDate.toIso8601String();
-    
+
     final response = await _client
         .from('courses')
         .select()
@@ -107,16 +119,16 @@ class SupabaseCourseDatasource {
   }
 
   Future<List<Map<String, dynamic>>> getRecentCourses(int maxCourses) async {
-  try {
-    final response = await _client
-        .from('courses')
-        .select()
-        .order('created_at', ascending: false)
-        .limit(maxCourses);
+    try {
+      final response = await _client
+          .from('courses')
+          .select()
+          .order('created_at', ascending: false)
+          .limit(maxCourses);
 
-    return List<Map<String, dynamic>>.from(response);
-  } catch (e) {
-    rethrow;
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      rethrow;
+    }
   }
-}
 }

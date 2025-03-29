@@ -4,11 +4,31 @@ import '../models/course.dart';
 class CourseRepository {
   final SupabaseCourseDatasource _datasource = SupabaseCourseDatasource();
 
+  // Dans CourseRepository
   Future<List<Course>> getAllCourses() async {
     try {
       final coursesData = await _datasource.getAllCourses();
+      if (coursesData.isEmpty) {
+        print("No courses found, adding mock data");
+        return [
+          Course(
+            id: "1",
+            title: "Cours test",
+            description: "Description test",
+            type: "collectif",
+            date: DateTime.now(),
+            startTime: "14:00",
+            endTime: "15:00",
+            capacity: 10,
+            currentParticipants: 2,
+            status: "available",
+            coachId: "1",
+          ),
+        ];
+      }
       return coursesData.map((data) => Course.fromJson(data)).toList();
     } catch (e) {
+      print("Error in getAllCourses: $e");
       return [];
     }
   }
@@ -63,13 +83,18 @@ class CourseRepository {
       // Sinon, filtrer côté client
       final coursesData = await _datasource.getAllCourses();
       final courses = coursesData.map((data) => Course.fromJson(data)).toList();
-      
+
       if (keyword.isEmpty) return courses;
-      
-      return courses.where((course) => 
-        course.title.toLowerCase().contains(keyword.toLowerCase()) ||
-        course.description.toLowerCase().contains(keyword.toLowerCase())
-      ).toList();
+
+      return courses
+          .where(
+            (course) =>
+                course.title.toLowerCase().contains(keyword.toLowerCase()) ||
+                course.description.toLowerCase().contains(
+                  keyword.toLowerCase(),
+                ),
+          )
+          .toList();
     } catch (e) {
       return [];
     }
@@ -97,31 +122,31 @@ class CourseRepository {
     try {
       final course = await getCourse(courseId);
       if (course == null) return false;
-      
+
       final now = DateTime.now();
       final courseDateTime = DateTime(
-        course.date.year, 
-        course.date.month, 
+        course.date.year,
+        course.date.month,
         course.date.day,
         int.parse(course.startTime.split(':')[0]),
-        int.parse(course.startTime.split(':')[1])
+        int.parse(course.startTime.split(':')[1]),
       );
-      
+
       // Un cours est disponible s'il est dans le futur et n'est pas complet
-      return courseDateTime.isAfter(now) && 
-             course.currentParticipants < course.capacity &&
-             course.status == 'available';
+      return courseDateTime.isAfter(now) &&
+          course.currentParticipants < course.capacity &&
+          course.status == 'available';
     } catch (e) {
       return false;
     }
   }
 
   Future<List<Course>> getRecentCourses(int maxCourses) async {
-  try {
-    final coursesData = await _datasource.getRecentCourses(maxCourses);
-    return coursesData.map((data) => Course.fromJson(data)).toList();
-  } catch (e) {
-    return [];
+    try {
+      final coursesData = await _datasource.getRecentCourses(maxCourses);
+      return coursesData.map((data) => Course.fromJson(data)).toList();
+    } catch (e) {
+      return [];
+    }
   }
-}
 }
