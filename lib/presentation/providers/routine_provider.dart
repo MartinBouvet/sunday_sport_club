@@ -12,29 +12,21 @@ class RoutineProvider extends ChangeNotifier {
   List<Routine> _availableRoutines = [];
   List<UserRoutine> _userRoutines = [];
   Map<String, Exercise> _exercisesCache = {};
-  UserRoutine? _currentUserRoutine;
   bool _isLoading = false;
   String? _errorMessage;
-  String? _successMessage;
 
   List<Routine> get availableRoutines => _availableRoutines;
   List<UserRoutine> get userRoutines => _userRoutines;
-  UserRoutine? get currentUserRoutine => _currentUserRoutine;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get successMessage => _successMessage;
   bool get hasError => _errorMessage != null;
-  bool get hasSuccess => _successMessage != null;
 
   Future<void> fetchAvailableRoutines() async {
     _setLoading(true);
-    _clearMessages();
+    _clearError();
 
     try {
       _availableRoutines = await _routineRepository.getAllRoutines();
-      debugPrint(
-        "Routines disponibles récupérées: ${_availableRoutines.length}",
-      );
       _setLoading(false);
     } catch (e) {
       _setError('Erreur lors de la récupération des routines: ${e.toString()}');
@@ -43,33 +35,25 @@ class RoutineProvider extends ChangeNotifier {
 
   Future<void> fetchUserRoutines(String userId) async {
     _setLoading(true);
-    _clearMessages();
+    _clearError();
 
     try {
+      debugPrint('Récupération des routines utilisateur: $userId');
       _userRoutines = await _routineRepository.getUserRoutines(userId);
+
+      if (_userRoutines.isEmpty) {
+        debugPrint('Aucune routine trouvée, création d\'une routine de test');
+        // Créer une routine de test si l'utilisateur n'en a pas
+        await _routineRepository.createRoutineForUser(userId);
+        // Récupérer à nouveau les routines
+        _userRoutines = await _routineRepository.getUserRoutines(userId);
+      }
+
       _setLoading(false);
     } catch (e) {
-      _setError('Erreur récupération routines: ${e.toString()}');
-    }
-  }
-
-  Future<void> _createSampleRoutineForUser(String userId) async {
-    try {
-      // Créer une routine de test dans la table routines
-      final routineId = await _routineRepository.createTestRoutine();
-
-      // Associer la routine à l'utilisateur
-      final userRoutine = UserRoutine(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: userId,
-        routineId: routineId,
-        assignedDate: DateTime.now(),
-        status: 'pending',
+      _setError(
+        'Erreur lors de la récupération des routines utilisateur: ${e.toString()}',
       );
-
-      await _routineRepository.createUserRoutine(userRoutine);
-    } catch (e) {
-      debugPrint("Erreur création routine test: $e");
     }
   }
 
@@ -85,20 +69,17 @@ class RoutineProvider extends ChangeNotifier {
       }
       return exercise;
     } catch (e) {
-      _setError(
-        'Erreur lors de la récupération de l\'exercice: ${e.toString()}',
-      );
+      debugPrint('Erreur getExerciseById: $e');
       return null;
     }
   }
 
   Future<Routine?> getRoutineById(String routineId) async {
     _setLoading(true);
-    _clearMessages();
+    _clearError();
 
     try {
       final routine = await _routineRepository.getRoutine(routineId);
-      debugPrint("Routine récupérée: id=${routine?.id}, nom=${routine?.name}");
       _setLoading(false);
       return routine;
     } catch (e) {
@@ -109,38 +90,32 @@ class RoutineProvider extends ChangeNotifier {
 
   Future<bool> completeUserRoutine(String userRoutineId) async {
     _setLoading(true);
-    _clearMessages();
+    _clearError();
 
     try {
-      debugPrint("Tentative de complétion de la routine: $userRoutineId");
-      await _routineRepository.updateUserRoutineStatus(
+      final success = await _routineRepository.completeUserRoutine(
         userRoutineId,
-        'terminé', // Utilisation du statut en français
       );
 
-      // Mise à jour locale
-      final index = _userRoutines.indexWhere((r) => r.id == userRoutineId);
-      if (index != -1) {
-        debugPrint(
-          "Mise à jour locale de la routine: statut précédent=${_userRoutines[index].status}",
-        );
-        _userRoutines[index] = _userRoutines[index].copyWith(
-          status: 'terminé',
-          completionDate: DateTime.now(),
-        );
-        debugPrint(
-          "Routine mise à jour localement: nouveau statut=${_userRoutines[index].status}",
-        );
-      } else {
-        debugPrint(
-          "⚠️ Routine non trouvée localement pour mise à jour: $userRoutineId",
-        );
+      if (success) {
+        // Mise à jour locale
+        final index = _userRoutines.indexWhere((r) => r.id == userRoutineId);
+        if (index != -1) {
+          _userRoutines[index] = UserRoutine(
+            id: _userRoutines[index].id,
+            userId: _userRoutines[index].userId,
+            routineId: _userRoutines[index].routineId,
+            assignedDate: _userRoutines[index].assignedDate,
+            status: 'completed',
+            completionDate: DateTime.now(),
+            routine: _userRoutines[index].routine,
+          );
+        }
       }
 
-      _setSuccess('Routine terminée avec succès');
-      return true;
+      _setLoading(false);
+      return success;
     } catch (e) {
-      debugPrint("⚠️ ERREUR lors de la complétion de routine: $e");
       _setError('Erreur lors de la complétion de la routine: ${e.toString()}');
       return false;
     }
@@ -153,21 +128,12 @@ class RoutineProvider extends ChangeNotifier {
 
   void _setError(String message) {
     _errorMessage = message;
-    _successMessage = null;
     _isLoading = false;
     notifyListeners();
   }
 
-  void _setSuccess(String message) {
-    _successMessage = message;
+  void _clearError() {
     _errorMessage = null;
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  void _clearMessages() {
-    _errorMessage = null;
-    _successMessage = null;
     notifyListeners();
   }
 }

@@ -41,11 +41,14 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     });
 
     try {
-      final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
-      
+      final routineProvider = Provider.of<RoutineProvider>(
+        context,
+        listen: false,
+      );
+
       // Charger la routine
       _routine = await routineProvider.getRoutineById(widget.routineId);
-      
+
       if (_routine != null) {
         // Charger les exercices associés
         for (final exerciseId in _routine!.exerciseIds) {
@@ -69,27 +72,27 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_routine?.name ?? 'Détails de la routine'),
-      ),
-      body: _isLoading
-          ? const LoadingIndicator(center: true, message: 'Chargement de la routine...')
-          : _errorMessage != null
+      appBar: AppBar(title: Text(_routine?.name ?? 'Détails de la routine')),
+      body:
+          _isLoading
+              ? const LoadingIndicator(
+                center: true,
+                message: 'Chargement de la routine...',
+              )
+              : _errorMessage != null
               ? ErrorDisplay(
-                  message: _errorMessage!,
-                  type: ErrorType.general,
-                  actionLabel: 'Réessayer',
-                  onAction: _loadRoutineDetails,
-                )
+                message: _errorMessage!,
+                type: ErrorType.general,
+                actionLabel: 'Réessayer',
+                onAction: _loadRoutineDetails,
+              )
               : _buildRoutineDetails(),
     );
   }
 
   Widget _buildRoutineDetails() {
     if (_routine == null) {
-      return const Center(
-        child: Text('Routine introuvable'),
-      );
+      return const Center(child: Text('Routine introuvable'));
     }
 
     return SingleChildScrollView(
@@ -99,14 +102,14 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
         children: [
           // En-tête de la routine
           _buildRoutineHeader(),
-          
+
           const SizedBox(height: 24),
-          
+
           // Liste des exercices
           _buildExercisesList(),
-          
+
           const SizedBox(height: 32),
-          
+
           // Bouton pour commencer
           AppButton(
             text: 'Commencer la routine',
@@ -114,10 +117,11 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RoutineExecutionScreen(
-                    routineId: _routine!.id,
-                    userRoutineId: widget.userRoutineId,
-                  ),
+                  builder:
+                      (context) => RoutineExecutionScreen(
+                        routineId: _routine!.id,
+                        userRoutineId: widget.userRoutineId,
+                      ),
                 ),
               );
             },
@@ -134,9 +138,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   Widget _buildRoutineHeader() {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -144,18 +146,12 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
           children: [
             Text(
               _routine!.name,
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
               _routine!.description,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[700],
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
             ),
             const SizedBox(height: 16),
             Row(
@@ -191,9 +187,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
   Widget _buildExercisesList() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -204,10 +198,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
               children: [
                 const Text(
                   'Exercices à réaliser',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '${_exercises.length} exercices',
@@ -219,7 +210,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             if (_exercises.isEmpty)
               const Center(
                 child: Padding(
@@ -254,7 +245,8 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     // Récupérer les détails spécifiques à l'exercice dans cette routine
     final exerciseDetails = _routine!.exerciseDetails;
     final sets = exerciseDetails?[exercise.id]?['sets'] ?? exercise.sets ?? 3;
-    final reps = exerciseDetails?[exercise.id]?['reps'] ?? exercise.repetitions ?? 10;
+    final reps =
+        exerciseDetails?[exercise.id]?['reps'] ?? exercise.repetitions ?? 10;
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -277,28 +269,25 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       ),
       title: Text(
         exercise.name,
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      subtitle: Text(exercise.description),
+      subtitle: Text(
+        exercise.description,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
             '$sets séries',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           Text('$reps répétitions'),
         ],
       ),
-      onTap: () {
-        // Afficher les détails de l'exercice
-        _showExerciseDetails(exercise, sets, reps);
-      },
+      onTap: () => _showExerciseDetails(exercise, sets, reps),
     );
   }
 
@@ -309,115 +298,125 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Titre et icône de fermeture
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        exercise.name,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+      builder:
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.9,
+            expand: false,
+            builder:
+                (context, scrollController) => SingleChildScrollView(
+                  controller: scrollController,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Titre et icône de fermeture
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                exercise.name,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 16),
+
+                        // Image ou icône représentative
+                        Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            _getCategoryIcon(exercise.category),
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Description
+                        const Text(
+                          'Description',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          exercise.description,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Informations détaillées
+                        const Text(
+                          'Instructions',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _buildInstructionItem('Séries', '$sets', Icons.repeat),
+                        const SizedBox(height: 12),
+                        _buildInstructionItem(
+                          'Répétitions',
+                          '$reps',
+                          Icons.fitness_center,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInstructionItem(
+                          'Durée',
+                          '${exercise.durationSeconds} secondes',
+                          Icons.timer,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInstructionItem(
+                          'Groupe musculaire',
+                          exercise.muscleGroup,
+                          Icons.accessibility_new,
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Conseils
+                        const Text(
+                          'Conseils',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildTip('Gardez le dos droit pendant l\'exercice'),
+                        const SizedBox(height: 8),
+                        _buildTip(
+                          'Respirez régulièrement, expirez pendant l\'effort',
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTip(
+                          'Concentrez-vous sur la qualité plutôt que la vitesse',
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Image ou icône représentative
-                Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _getCategoryIcon(exercise.category),
-                    size: 64,
-                    color: Colors.grey[400],
                   ),
                 ),
-                const SizedBox(height: 24),
-                
-                // Description
-                const Text(
-                  'Description',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  exercise.description,
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 24),
-                
-                // Informations détaillées
-                const Text(
-                  'Instructions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildInstructionItem('Séries', '$sets', Icons.repeat),
-                const SizedBox(height: 12),
-                _buildInstructionItem('Répétitions', '$reps', Icons.fitness_center),
-                const SizedBox(height: 12),
-                _buildInstructionItem(
-                  'Durée', 
-                  '${exercise.durationSeconds} secondes', 
-                  Icons.timer
-                ),
-                const SizedBox(height: 12),
-                _buildInstructionItem(
-                  'Groupe musculaire', 
-                  exercise.muscleGroup, 
-                  Icons.accessibility_new
-                ),
-                const SizedBox(height: 24),
-                
-                // Conseils
-                const Text(
-                  'Conseils',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildTip('Gardez le dos droit pendant l\'exercice'),
-                const SizedBox(height: 8),
-                _buildTip('Respirez régulièrement, expirez pendant l\'effort'),
-                const SizedBox(height: 8),
-                _buildTip('Concentrez-vous sur la qualité plutôt que la vitesse'),
-              ],
-            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -430,19 +429,10 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
             color: Colors.blue.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            icon,
-            color: Colors.blue,
-            size: 16,
-          ),
+          child: Icon(icon, color: Colors.blue, size: 16),
         ),
         const SizedBox(width: 16),
-        Text(
-          '$label: ',
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
         Text(value),
       ],
     );
@@ -452,15 +442,9 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(
-          Icons.check_circle,
-          color: Colors.green,
-          size: 16,
-        ),
+        const Icon(Icons.check_circle, color: Colors.green, size: 16),
         const SizedBox(width: 8),
-        Expanded(
-          child: Text(text),
-        ),
+        Expanded(child: Text(text)),
       ],
     );
   }
@@ -476,11 +460,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -520,7 +500,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
         return Icons.arrow_forward;
     }
   }
-  
+
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
       case 'cardio':

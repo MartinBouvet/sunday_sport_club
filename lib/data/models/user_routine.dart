@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'routine.dart';
 
 class UserRoutine {
   final String id;
   final String userId;
   final String routineId;
   final DateTime assignedDate;
-  final String status; // 'assigned', 'in_progress', 'completed', 'validated'
+  final String status; // 'pending', 'in_progress', 'completed', 'validated'
   final DateTime? completionDate;
-  final String? validatedBy; // ID du coach qui a validé la routine
+  final String? validatedBy;
   final int? experienceGained;
   final String? feedback;
+  final Routine? routine; // Relation avec la routine
 
   UserRoutine({
     required this.id,
@@ -21,22 +23,43 @@ class UserRoutine {
     this.validatedBy,
     this.experienceGained,
     this.feedback,
+    this.routine,
   });
 
-  // lib/data/models/user_routine.dart
   factory UserRoutine.fromJson(Map<String, dynamic> json) {
     try {
-      // Normaliser les noms de champs
-      final String userId = json['user_id'] ?? json['profile_id'] ?? '';
-      final String routineId = json['routine_id'] ?? '';
+      String userId = json['user_id'] ?? json['profile_id'] ?? '';
+      String routineId = json['routine_id'] ?? '';
 
-      // Assurer la conversion de date correcte
-      DateTime assignedDate = DateTime.now();
+      DateTime assignedDate;
       try {
-        if (json['assigned_date'] != null) {
-          assignedDate = DateTime.parse(json['assigned_date']);
+        assignedDate =
+            json['assigned_date'] != null
+                ? DateTime.parse(json['assigned_date'])
+                : DateTime.now();
+      } catch (e) {
+        debugPrint('Erreur date assignedDate: $e');
+        assignedDate = DateTime.now();
+      }
+
+      DateTime? completionDate;
+      if (json['completion_date'] != null) {
+        try {
+          completionDate = DateTime.parse(json['completion_date']);
+        } catch (e) {
+          debugPrint('Erreur date completionDate: $e');
         }
-      } catch (_) {}
+      }
+
+      // Récupération de la routine associée
+      Routine? routine;
+      if (json['routines'] != null) {
+        try {
+          routine = Routine.fromJson(json['routines']);
+        } catch (e) {
+          debugPrint('Erreur parsing routine associée: $e');
+        }
+      }
 
       return UserRoutine(
         id: json['id'] ?? '',
@@ -44,16 +67,14 @@ class UserRoutine {
         routineId: routineId,
         assignedDate: assignedDate,
         status: json['status'] ?? 'pending',
-        completionDate:
-            json['completion_date'] != null
-                ? DateTime.parse(json['completion_date'])
-                : null,
+        completionDate: completionDate,
         validatedBy: json['validated_by'],
         experienceGained: json['experience_gained'],
         feedback: json['feedback'],
+        routine: routine,
       );
     } catch (e) {
-      debugPrint('Erreur parsing UserRoutine: $e');
+      debugPrint('ERREUR parsing UserRoutine: $e');
       return UserRoutine(
         id: 'error-${DateTime.now().millisecondsSinceEpoch}',
         userId: '',
@@ -65,57 +86,16 @@ class UserRoutine {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
+    return {
       'id': id,
-      'profile_id':
-          userId, // Utiliser profile_id pour compatibilité avec la base de données
+      'user_id': userId,
       'routine_id': routineId,
       'assigned_date': assignedDate.toIso8601String(),
       'status': status,
+      'completion_date': completionDate?.toIso8601String(),
+      'validated_by': validatedBy,
+      'experience_gained': experienceGained,
+      'feedback': feedback,
     };
-
-    if (completionDate != null) {
-      data['completion_date'] = completionDate!.toIso8601String();
-    }
-    if (validatedBy != null) {
-      data['validated_by'] = validatedBy;
-    }
-    if (experienceGained != null) {
-      data['experience_gained'] = experienceGained;
-    }
-    if (feedback != null) {
-      data['feedback'] = feedback;
-    }
-
-    return data;
-  }
-
-  UserRoutine copyWith({
-    String? id,
-    String? userId,
-    String? routineId,
-    DateTime? assignedDate,
-    String? status,
-    DateTime? completionDate,
-    String? validatedBy,
-    int? experienceGained,
-    String? feedback,
-  }) {
-    return UserRoutine(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      routineId: routineId ?? this.routineId,
-      assignedDate: assignedDate ?? this.assignedDate,
-      status: status ?? this.status,
-      completionDate: completionDate ?? this.completionDate,
-      validatedBy: validatedBy ?? this.validatedBy,
-      experienceGained: experienceGained ?? this.experienceGained,
-      feedback: feedback ?? this.feedback,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'UserRoutine{id: $id, userId: $userId, routineId: $routineId, status: $status}';
   }
 }

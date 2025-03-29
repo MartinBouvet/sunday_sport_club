@@ -2,176 +2,78 @@ import 'package:flutter/material.dart';
 import '../models/routine.dart';
 import '../models/user_routine.dart';
 import '../datasources/supabase/supabase_routine_datasource.dart';
-import '../../../core/utils/supabase_client.dart';
 
 class RoutineRepository {
   final SupabaseRoutineDatasource _datasource = SupabaseRoutineDatasource();
 
-  // Récupérer toutes les routines disponibles
   Future<List<Routine>> getAllRoutines() async {
     try {
-      final response = await _datasource.getAllRoutines();
-      debugPrint("getAllRoutines: ${response.length} routines récupérées");
-
-      List<Routine> routines = [];
-      for (var data in response) {
-        try {
-          routines.add(Routine.fromJson(data));
-        } catch (e) {
-          debugPrint("Erreur lors de la conversion de routine: $e");
-        }
-      }
-
-      debugPrint("Conversion de ${routines.length} routines depuis JSON");
-      return routines;
+      final routinesData = await _datasource.getAllRoutines();
+      return routinesData.map((data) => Routine.fromJson(data)).toList();
     } catch (e) {
-      debugPrint("Erreur lors de la récupération de toutes les routines: $e");
+      debugPrint('Erreur getAllRoutines: $e');
       return [];
     }
   }
 
-  // Récupérer une routine spécifique par ID
   Future<Routine?> getRoutine(String routineId) async {
     try {
-      final response = await _datasource.getRoutine(routineId);
-      return Routine.fromJson(response);
+      final routineData = await _datasource.getRoutine(routineId);
+      return Routine.fromJson(routineData);
     } catch (e) {
-      debugPrint("Erreur lors de la récupération de la routine $routineId: $e");
+      debugPrint('Erreur getRoutine: $e');
       return null;
     }
   }
 
-  // Récupérer toutes les routines d'un utilisateur
   Future<List<UserRoutine>> getUserRoutines(String userId) async {
     try {
-      final response = await _datasource.getUserRoutines(userId);
-      debugPrint("getUserRoutines: ${response.length} routines trouvées");
+      final userRoutinesData = await _datasource.getUserRoutines(userId);
 
-      List<UserRoutine> userRoutines = [];
-      for (var data in response) {
-        try {
-          // Vérifions le format des données
-          debugPrint(
-            "Data: ${data.toString().substring(0, min(100, data.toString().length))}...",
-          );
-          userRoutines.add(UserRoutine.fromJson(data));
-        } catch (e) {
-          debugPrint("Erreur de conversion pour UserRoutine: $e");
+      return userRoutinesData.map((data) {
+        final routineData = data['routines'];
+        Routine? routine;
+
+        if (routineData != null) {
+          routine = Routine.fromJson(routineData);
         }
-      }
 
-      return userRoutines;
+        return UserRoutine.fromJson({...data, 'routine': routine});
+      }).toList();
     } catch (e) {
-      debugPrint("Erreur lors de la récupération des routines utilisateur: $e");
+      debugPrint('Erreur getUserRoutines: $e');
       return [];
     }
   }
 
-  // Créer une nouvelle routine utilisateur
-  Future<void> createUserRoutine(UserRoutine userRoutine) async {
+  Future<bool> completeUserRoutine(String userRoutineId) async {
     try {
-      await _datasource.createUserRoutine(userRoutine.toJson());
+      await _datasource.updateUserRoutineStatus(userRoutineId, 'completed');
+      return true;
     } catch (e) {
-      debugPrint("Erreur lors de la création de la routine utilisateur: $e");
-      rethrow;
+      debugPrint('Erreur completeUserRoutine: $e');
+      return false;
     }
   }
 
-  // lib/data/repositories/routine_repository.dart
-  Future<String> createTestRoutine() async {
+  // Pour créer des données de test
+  Future<String> createRoutineForUser(String userId) async {
     try {
-      final routine = Routine(
-        id: 'routine-${DateTime.now().millisecondsSinceEpoch}',
-        name: 'Routine d\'entraînement hebdomadaire',
-        description: 'Exercices de base pour renforcer tout le corps',
-        difficulty: 'intermédiaire',
-        estimatedDurationMinutes: 30,
-        exerciseIds: ['ex1', 'ex2', 'ex3'],
-        createdBy: 'system',
-        createdAt: DateTime.now(),
-        isPublic: true,
-      );
+      // Créer routine
+      final routineId = await _datasource.createTestRoutine();
 
-      // Créer les exercices si nécessaire
-      await _createSampleExercises();
+      // Assigner à l'utilisateur
+      final userRoutineData = {
+        'user_id': userId,
+        'routine_id': routineId,
+        'assigned_date': DateTime.now().toIso8601String(),
+        'status': 'pending',
+      };
 
-      return await _datasource.createRoutine(routine.toJson());
+      return await _datasource.createUserRoutine(userRoutineData);
     } catch (e) {
-      debugPrint("Erreur création routine test: $e");
-      throw e;
-    }
-  }
-
-  Future<void> _createSampleExercises() async {
-    try {
-      final exercises = [
-        {
-          'id': 'ex1',
-          'name': 'Pompes',
-          'description': 'Effectuer des pompes en gardant le dos droit',
-          'category': 'force',
-          'difficulty': 'intermédiaire',
-          'duration_seconds': 60,
-          'repetitions': 15,
-          'sets': 3,
-          'muscle_group': 'pectoraux',
-        },
-        {
-          'id': 'ex2',
-          'name': 'Squats',
-          'description': 'Effectuer des squats en gardant le dos droit',
-          'category': 'force',
-          'difficulty': 'intermédiaire',
-          'duration_seconds': 60,
-          'repetitions': 20,
-          'sets': 3,
-          'muscle_group': 'jambes',
-        },
-        {
-          'id': 'ex3',
-          'name': 'Burpees',
-          'description': 'Enchaîner les mouvements rapidement',
-          'category': 'cardio',
-          'difficulty': 'difficile',
-          'duration_seconds': 45,
-          'repetitions': 10,
-          'sets': 3,
-          'muscle_group': 'full_body',
-        },
-      ];
-
-      for (var exercise in exercises) {
-        await supabase.from('exercises').upsert(exercise);
-      }
-    } catch (e) {
-      debugPrint("Erreur création exercices: $e");
-    }
-  }
-
-  // Mettre à jour le statut d'une routine utilisateur
-  Future<void> updateUserRoutineStatus(
-    String userRoutineId,
-    String status,
-  ) async {
-    try {
-      await _datasource.updateUserRoutineStatus(userRoutineId, status);
-    } catch (e) {
-      debugPrint("Erreur lors de la mise à jour du statut: $e");
-      rethrow;
-    }
-  }
-
-  // Obtenir le nombre de routines en attente de validation
-  Future<int> getPendingValidationCount() async {
-    try {
-      final routines = await _datasource.getPendingValidationRoutines();
-      return routines.length;
-    } catch (e) {
-      debugPrint("Erreur lors du comptage des routines en attente: $e");
-      return 0;
+      debugPrint('Erreur createRoutineForUser: $e');
+      return '';
     }
   }
 }
-
-// Fonction utilitaire pour obtenir le minimum de 2 nombres
-int min(int a, int b) => a < b ? a : b;
