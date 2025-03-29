@@ -8,34 +8,38 @@ class ChallengeProvider extends ChangeNotifier {
 
   DailyChallenge? _dailyChallenge;
   List<UserChallenge> _userChallenges = [];
+  List<DailyChallenge> _allChallenges = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   // Accesseurs publics
   DailyChallenge? get dailyChallenge => _dailyChallenge;
   List<UserChallenge> get userChallenges => _userChallenges;
+  List<DailyChallenge> get allChallenges => _allChallenges;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get hasError => _errorMessage != null;
 
   // Récupération d'un défi spécifique par son ID
   Future<DailyChallenge?> getChallenge(String challengeId) async {
-    // Mettre à jour l'état sans notifier (pour éviter une notification pendant le build)
     _isLoading = true;
     _errorMessage = null;
-    
+
     try {
-      // Obtenir le défi depuis le repository
-      final challenge = await _challengeRepository.getChallenge(challengeId);
-      
-      // Mettre à jour l'état et notifier
+      // D'abord, vérifier dans la liste déjà chargée
+      DailyChallenge? challenge;
+      try {
+        challenge = _allChallenges.firstWhere((c) => c.id == challengeId);
+      } catch (_) {
+        challenge = await _challengeRepository.getChallenge(challengeId);
+      }
+
       _isLoading = false;
       notifyListeners();
       return challenge;
     } catch (e) {
-      // Gérer l'erreur, mettre à jour l'état et notifier
-      _isLoading = false;
       _errorMessage = 'Erreur lors du chargement du défi: ${e.toString()}';
+      _isLoading = false;
       notifyListeners();
       return null;
     }
@@ -43,58 +47,79 @@ class ChallengeProvider extends ChangeNotifier {
 
   // Récupération du défi quotidien
   Future<void> fetchDailyChallenge() async {
-    // Cette méthode sera appelée en dehors du build,
-    // donc nous pouvons utiliser la notification standard
     _isLoading = true;
     _errorMessage = null;
-
+    notifyListeners();
 
     try {
       final today = DateTime.now();
-      final formattedDate = DateTime(today.year, today.month, today.day);
-      final dailyChallenge = await _challengeRepository.getDailyChallenge(formattedDate);
-      
-      // Mise à jour de l'état
-      _dailyChallenge = dailyChallenge;
+      _dailyChallenge = await _challengeRepository.getDailyChallenge(today);
+
+      // Si aucun défi quotidien n'est trouvé, charger tous les défis
+      if (_dailyChallenge == null) {
+        await fetchAllChallenges();
+
+        // Essayer de trouver un défi pour aujourd'hui
+        final todayFormatted = DateTime(today.year, today.month, today.day);
+        try {
+          _dailyChallenge = _allChallenges.firstWhere((challenge) {
+            final challengeDate = DateTime(
+              challenge.date.year,
+              challenge.date.month,
+              challenge.date.day,
+            );
+            return challengeDate.isAtSameMomentAs(todayFormatted);
+          });
+        } catch (_) {
+          // Si aucun défi trouvé pour aujourd'hui, prendre le premier si disponible
+          if (_allChallenges.isNotEmpty) {
+            _dailyChallenge = _allChallenges.first;
+          }
+        }
+      }
+
       _isLoading = false;
-      
-      // Notification après mise à jour complète de l'état
       notifyListeners();
     } catch (e) {
-      // Gestion d'erreur
-      _errorMessage = 'Erreur lors de la récupération du défi quotidien: ${e.toString()}';
+      _errorMessage =
+          'Erreur lors de la récupération du défi quotidien: ${e.toString()}';
       _isLoading = false;
-      
-      // Notification après mise à jour complète de l'état
+      notifyListeners();
+    }
+  }
+
+  // Récupération de tous les défis
+  Future<void> fetchAllChallenges() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _allChallenges = await _challengeRepository.getAllChallenges();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage =
+          'Erreur lors de la récupération des défis: ${e.toString()}';
+      _isLoading = false;
       notifyListeners();
     }
   }
 
   // Récupération des défis de l'utilisateur
   Future<void> fetchUserChallenges(String userId) async {
-    // Mise à jour de l'état sans notification immédiate
     _isLoading = true;
     _errorMessage = null;
-    
-    // Notification après mise à jour initiale de l'état
     notifyListeners();
 
     try {
-      // Obtenir les défis utilisateur
-      final challenges = await _challengeRepository.getUserChallenges(userId);
-      
-      // Mise à jour de l'état
-      _userChallenges = challenges;
+      _userChallenges = await _challengeRepository.getUserChallenges(userId);
       _isLoading = false;
-      
-      // Notification après mise à jour complète
       notifyListeners();
     } catch (e) {
-      // Gestion d'erreur
-      _errorMessage = 'Erreur lors de la récupération des défis utilisateur: ${e.toString()}';
+      _errorMessage =
+          'Erreur lors de la récupération des défis utilisateur: ${e.toString()}';
       _isLoading = false;
-      
-      // Notification après mise à jour complète
       notifyListeners();
     }
   }
@@ -119,20 +144,17 @@ class ChallengeProvider extends ChangeNotifier {
 
     // Vérification si déjà complété
     if (isChallengeCompleted(challengeId)) {
-      return true; // Défi déjà complété
+      return true; // Déjà complété
     }
 
-    // Mise à jour de l'état
     _isLoading = true;
     _errorMessage = null;
-    
-    // Notification après mise à jour initiale
     notifyListeners();
 
     try {
-      // Création d'un nouvel objet UserChallenge
+      // Créer un nouvel objet UserChallenge
       final userChallenge = UserChallenge(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: 'uc-${DateTime.now().millisecondsSinceEpoch}',
         userId: userId,
         challengeId: challengeId,
         assignedDate: DateTime.now(),
@@ -140,27 +162,66 @@ class ChallengeProvider extends ChangeNotifier {
         completionDate: DateTime.now(),
       );
 
-      // Validation du défi via le repository
+      // Assigner le défi à l'utilisateur
+      final newChallengeId = await _challengeRepository.assignChallengeToUser(
+        userChallenge,
+      );
+
+      // Marquer comme terminé
       await _challengeRepository.updateUserChallengeStatus(
-        userChallenge.id,
+        newChallengeId,
         'completed',
       );
 
       // Mise à jour locale
       _userChallenges.add(userChallenge);
+
       _isLoading = false;
-      
-      // Notification après mise à jour complète
       notifyListeners();
       return true;
     } catch (e) {
-      // Gestion d'erreur
       _errorMessage = 'Erreur lors de la complétion du défi: ${e.toString()}';
       _isLoading = false;
-      
-      // Notification après mise à jour complète
       notifyListeners();
       return false;
     }
+  }
+
+  // Récupérer les défis à venir
+  Future<List<DailyChallenge>> getUpcomingChallenges() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (_allChallenges.isEmpty) {
+      await fetchAllChallenges();
+    }
+
+    return _allChallenges.where((challenge) {
+      final challengeDate = DateTime(
+        challenge.date.year,
+        challenge.date.month,
+        challenge.date.day,
+      );
+      return challengeDate.isAfter(today);
+    }).toList();
+  }
+
+  // Récupérer les défis passés
+  Future<List<DailyChallenge>> getPastChallenges() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (_allChallenges.isEmpty) {
+      await fetchAllChallenges();
+    }
+
+    return _allChallenges.where((challenge) {
+      final challengeDate = DateTime(
+        challenge.date.year,
+        challenge.date.month,
+        challenge.date.day,
+      );
+      return challengeDate.isBefore(today);
+    }).toList();
   }
 }

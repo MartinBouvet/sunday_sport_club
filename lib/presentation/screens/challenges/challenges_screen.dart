@@ -14,7 +14,8 @@ class ChallengesScreen extends StatefulWidget {
   State<ChallengesScreen> createState() => _ChallengesScreenState();
 }
 
-class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerProviderStateMixin {
+class _ChallengesScreenState extends State<ChallengesScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   late TabController _tabController;
   String _filter = 'all'; // 'all', 'completed', 'pending'
@@ -23,7 +24,11 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadChallenges();
+
+    // Utiliser addPostFrameCallback pour éviter setState pendant le build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadChallenges();
+    });
   }
 
   @override
@@ -38,15 +43,23 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
     });
 
     try {
-      final challengeProvider = Provider.of<ChallengeProvider>(context, listen: false);
+      final challengeProvider = Provider.of<ChallengeProvider>(
+        context,
+        listen: false,
+      );
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       if (authProvider.currentUser != null) {
-        // Load daily challenge
+        // Load all challenges first
+        await challengeProvider.fetchAllChallenges();
+
+        // Then load daily challenge
         await challengeProvider.fetchDailyChallenge();
-        
+
         // Load user challenges
-        await challengeProvider.fetchUserChallenges(authProvider.currentUser!.id);
+        await challengeProvider.fetchUserChallenges(
+          authProvider.currentUser!.id,
+        );
       }
     } catch (e) {
       // Error handling is done by the provider
@@ -71,17 +84,17 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
             Tab(text: 'En cours'),
             Tab(text: 'Complétés'),
           ],
-          labelColor: Colors.white, // Couleur du texte sélectionné
-    unselectedLabelColor: Colors.white.withOpacity(0.7), // Couleur du texte non sélectionné
-    labelStyle: const TextStyle(fontWeight: FontWeight.bold), // Texte en gras quand sélectionné
-    indicatorColor: Colors.white, // Couleur de l'indicateur (ligne sous l'onglet)
-    indicatorWeight: 3.0,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          indicatorColor: Colors.white,
+          indicatorWeight: 3.0,
         ),
       ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.currentUser;
-          
+
           if (user == null) {
             return const Center(
               child: Text('Veuillez vous connecter pour accéder à cette page'),
@@ -106,90 +119,118 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
                 );
               }
 
-              // Filter user challenges based on tab
-              final userChallenges = challengeProvider.userChallenges;
-              List<dynamic> filteredChallenges = [];
-              
-              switch (_tabController.index) {
-                case 0: // All
-                  filteredChallenges = userChallenges;
-                  break;
-                case 1: // Pending
-                  filteredChallenges = userChallenges.where((challenge) => 
-                    challenge.status == 'pending' || challenge.status == 'in_progress').toList();
-                  break;
-                case 2: // Completed
-                  filteredChallenges = userChallenges.where((challenge) => 
-                    challenge.status == 'completed').toList();
-                  break;
-              }
+              // TabBarView pour afficher le contenu des onglets
+              return TabBarView(
+                controller: _tabController,
+                children: [
+                  // Onglet "Tous"
+                  _buildAllChallengesTab(challengeProvider),
 
-              // For demo purposes, if no challenges, add daily challenge
-              if (filteredChallenges.isEmpty && challengeProvider.dailyChallenge != null) {
-                filteredChallenges = [challengeProvider.dailyChallenge!];
-              }
+                  // Onglet "En cours"
+                  _buildPendingChallengesTab(challengeProvider),
 
-              return RefreshIndicator(
-                onRefresh: _loadChallenges,
-                child: filteredChallenges.isEmpty 
-                  ? _buildEmptyState() 
-                  : _buildChallengesList(filteredChallenges, challengeProvider),
+                  // Onglet "Complétés"
+                  _buildCompletedChallengesTab(challengeProvider),
+                ],
               );
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Refresh challenges
-          _loadChallenges();
-        },
+        onPressed: _loadChallenges,
         tooltip: 'Rafraîchir',
         child: const Icon(Icons.refresh),
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    String message = '';
-    
-    switch (_tabController.index) {
-      case 0:
-        message = 'Aucun défi disponible pour le moment';
-        break;
-      case 1:
-        message = 'Vous n\'avez pas de défis en cours';
-        break;
-      case 2:
-        message = 'Vous n\'avez pas encore complété de défis';
-        break;
+  Widget _buildAllChallengesTab(ChallengeProvider provider) {
+    final challenges = provider.allChallenges;
+
+    if (challenges.isEmpty) {
+      return _buildEmptyState('Aucun défi disponible pour le moment');
     }
-    
+
+    return RefreshIndicator(
+      onRefresh: _loadChallenges,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: challenges.length,
+        itemBuilder: (context, index) {
+          final challenge = challenges[index];
+          final bool isCompleted = provider.isChallengeCompleted(challenge.id);
+
+          return _buildChallengeCard(challenge, isCompleted, provider);
+        },
+      ),
+    );
+  }
+
+  Widget _buildPendingChallengesTab(ChallengeProvider provider) {
+    // Filtrer pour les défis non complétés
+    final pendingChallenges =
+        provider.allChallenges
+            .where((challenge) => !provider.isChallengeCompleted(challenge.id))
+            .toList();
+
+    if (pendingChallenges.isEmpty) {
+      return _buildEmptyState('Vous n\'avez pas de défis en cours');
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadChallenges,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: pendingChallenges.length,
+        itemBuilder: (context, index) {
+          final challenge = pendingChallenges[index];
+          return _buildChallengeCard(challenge, false, provider);
+        },
+      ),
+    );
+  }
+
+  Widget _buildCompletedChallengesTab(ChallengeProvider provider) {
+    // Filtrer pour les défis complétés
+    final completedChallenges =
+        provider.allChallenges
+            .where((challenge) => provider.isChallengeCompleted(challenge.id))
+            .toList();
+
+    if (completedChallenges.isEmpty) {
+      return _buildEmptyState('Vous n\'avez pas encore complété de défis');
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadChallenges,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: completedChallenges.length,
+        itemBuilder: (context, index) {
+          final challenge = completedChallenges[index];
+          return _buildChallengeCard(challenge, true, provider);
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.emoji_events_outlined,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.emoji_events_outlined, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             message,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             'Revenez plus tard pour de nouveaux défis!',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -197,169 +238,149 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
     );
   }
 
-  Widget _buildChallengesList(List<dynamic> challenges, ChallengeProvider provider) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: challenges.length,
-      itemBuilder: (context, index) {
-        // Handle both DailyChallenge and UserChallenge objects
-        final challenge = challenges[index];
-        final bool isCompleted = challenge is DailyChallenge
-            ? provider.isChallengeCompleted(challenge.id)
-            : challenge.status == 'completed';
-        
-        // Get title and description
-        final String title = challenge is DailyChallenge 
-            ? challenge.title 
-            : challenge.dailyChallenge?.title ?? 'Défi';
-        
-        final String description = challenge is DailyChallenge 
-            ? challenge.description 
-            : challenge.dailyChallenge?.description ?? 'Description non disponible';
-        
-        // Get difficulty and experience points
-        final String difficulty = challenge is DailyChallenge 
-            ? challenge.difficulty 
-            : challenge.dailyChallenge?.difficulty ?? 'Intermédiaire';
-        
-        final int experiencePoints = challenge is DailyChallenge 
-            ? challenge.experiencePoints 
-            : challenge.experienceGained ?? 0;
+  Widget _buildChallengeCard(
+    DailyChallenge challenge,
+    bool isCompleted,
+    ChallengeProvider provider,
+  ) {
+    Color difficultyColor = _getDifficultyColor(challenge.difficulty);
 
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChallengeDetailScreen(
-                    challengeId: challenge is DailyChallenge ? challenge.id : challenge.challengeId,
-                    userChallengeId: challenge is DailyChallenge ? null : challenge.id,
-                  ),
-                ),
-              ).then((_) => _loadChallenges());
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => ChallengeDetailScreen(challengeId: challenge.id),
+            ),
+          ).then((_) => _loadChallenges());
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Titre et statut
+              Row(
                 children: [
-                  // Challenge title and status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                  Expanded(
+                    child: Text(
+                      challenge.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
-                      if (isCompleted)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Text(
-                            'Complété',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  
-                  // Challenge description
-                  Text(
-                    description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Challenge details (difficulty, XP)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildDetailChip(
-                        _getDifficultyIcon(difficulty), 
-                        difficulty,
-                        _getDifficultyColor(difficulty),
+                  if (isCompleted)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                      _buildDetailChip(
-                        Icons.star, 
-                        '$experiencePoints XP',
-                        Colors.amber,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
+                      child: const Text(
+                        'Complété',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Description
+              Text(
+                challenge.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+
+              // Détails du défi
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Badge de difficulté
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: difficultyColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: difficultyColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getDifficultyIcon(challenge.difficulty),
+                          size: 16,
+                          color: difficultyColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          challenge.difficulty,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: difficultyColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Points XP
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star, size: 16, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${challenge.experiencePoints} XP',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.amber,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailChip(IconData icon, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: color,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
+        ),
       ),
     );
-  }
-
-  IconData _getDifficultyIcon(String difficulty) {
-    switch (difficulty.toLowerCase()) {
-      case 'facile':
-        return Icons.trip_origin;
-      case 'intermédiaire':
-        return Icons.copyright;
-      case 'difficile':
-        return Icons.change_history;
-      default:
-        return Icons.copyright;
-    }
   }
 
   Color _getDifficultyColor(String difficulty) {
@@ -372,6 +393,19 @@ class _ChallengesScreenState extends State<ChallengesScreen> with SingleTickerPr
         return Colors.red;
       default:
         return Colors.orange;
+    }
+  }
+
+  IconData _getDifficultyIcon(String difficulty) {
+    switch (difficulty.toLowerCase()) {
+      case 'facile':
+        return Icons.trip_origin;
+      case 'intermédiaire':
+        return Icons.copyright;
+      case 'difficile':
+        return Icons.change_history;
+      default:
+        return Icons.copyright;
     }
   }
 }
