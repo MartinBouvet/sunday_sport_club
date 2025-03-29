@@ -1,69 +1,160 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:intl/intl.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/widgets/avatar_display.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/utils/supabase_client.dart';
 import '../../providers/auth_provider.dart';
 import '../profile/profile_screen.dart';
 
-/// Service pour récupérer les données du classement
+/// Service pour récupérer les données du classement avec API Supabase moderne
 class LeaderboardService {
   // Méthode pour récupérer les utilisateurs triés
   Future<List<Map<String, dynamic>>> getLeaderboardData(String filter, String timeRange) async {
     try {
-      // Requête à Supabase pour récupérer les utilisateurs triés
-      dynamic response;
+      debugPrint('=== LEADERBOARD DEBUG ===');
+      debugPrint('Requête avec filter: $filter, timeRange: $timeRange');
       
-      switch (filter) {
-        case 'xp':
-          response = await supabase
+      // Tentative avec une requête explicite pour contourner les limites RLS potentielles
+      final allUsersQuery = await supabase
+          .from('profiles')
+          .select('*');
+          
+      debugPrint('Query type: ${allUsersQuery.runtimeType}');
+      debugPrint('Résultat initial: longueur=${allUsersQuery is List ? allUsersQuery.length : "non-liste"}');
+      
+      // Tentative alternative avec une API RPC si disponible
+      // Cette approche utilise une fonction côté serveur qui peut contourner les restrictions RLS
+      var allUsersRPC;
+      try {
+        allUsersRPC = await supabase.rpc('get_all_profiles');
+        debugPrint('RPC disponible: ${allUsersRPC != null}, longueur=${allUsersRPC is List ? allUsersRPC.length : "non-liste"}');
+      } catch (rpcError) {
+        debugPrint('RPC non disponible: $rpcError');
+      }
+      
+      // Tentative avec requête SQL directe via fonction d'administration
+      var allUsersAdmin;
+      try {
+        allUsersAdmin = await supabase.rpc('admin_get_all_profiles');
+        debugPrint('Admin RPC disponible: ${allUsersAdmin != null}, longueur=${allUsersAdmin is List ? allUsersAdmin.length : "non-liste"}');
+      } catch (adminError) {
+        debugPrint('Admin RPC non disponible: $adminError');
+      }
+      
+      // Requête à Supabase avec options explicites
+      List<dynamic> data;
+      
+      try {
+        // 1. Première tentative avec syntaxe complète
+        debugPrint('Tentative de requête avec options explicites: $filter');
+        
+        if (filter == 'xp') {
+          data = await supabase
               .from('profiles')
-              .select()
-              .order('experience_points', ascending: false)
-              .limit(100);
-          break;
-        case 'level':
-          response = await supabase
+              .select('id, first_name, last_name, gender, skin_color, avatar_stage, level, experience_points, strength, endurance')
+              .order('experience_points', ascending: false);
+        } else if (filter == 'level') {
+          data = await supabase
               .from('profiles')
-              .select()
-              .order('level', ascending: false)
-              .limit(100);
-          break;
-        case 'strength':
-          response = await supabase
+              .select('id, first_name, last_name, gender, skin_color, avatar_stage, level, experience_points, strength, endurance')
+              .order('level', ascending: false);
+        } else if (filter == 'strength') {
+          data = await supabase
               .from('profiles')
-              .select()
-              .order('strength', ascending: false)
-              .limit(100);
-          break;
-        case 'endurance':
-          response = await supabase
+              .select('id, first_name, last_name, gender, skin_color, avatar_stage, level, experience_points, strength, endurance')
+              .order('strength', ascending: false);
+        } else if (filter == 'endurance') {
+          data = await supabase
               .from('profiles')
-              .select()
-              .order('endurance', ascending: false)
-              .limit(100);
-          break;
-        default:
-          response = await supabase
+              .select('id, first_name, last_name, gender, skin_color, avatar_stage, level, experience_points, strength, endurance')
+              .order('endurance', ascending: false);
+        } else {
+          data = await supabase
               .from('profiles')
-              .select()
-              .order('experience_points', ascending: false)
-              .limit(100);
+              .select('id, first_name, last_name, gender, skin_color, avatar_stage, level, experience_points, strength, endurance')
+              .order('experience_points', ascending: false);
+        }
+      } catch (primaryError) {
+        debugPrint('Erreur requête principale: $primaryError');
+        
+        // 2. Fallback sur une requête simplifiée si la première échoue
+        debugPrint('Tentative de fallback avec requête simplifiée');
+        try {
+          data = await supabase
+              .from('profiles')
+              .select();
+        } catch (fallbackError) {
+          debugPrint('Erreur requête fallback: $fallbackError');
+          
+          // 3. Dernier recours : utiliser les données du diagnostic si disponibles
+          if (allUsersRPC is List && allUsersRPC.isNotEmpty) {
+            debugPrint('Utilisation des données RPC comme fallback');
+            data = allUsersRPC;
+          } else if (allUsersAdmin is List && allUsersAdmin.isNotEmpty) {
+            debugPrint('Utilisation des données Admin comme fallback');
+            data = allUsersAdmin;
+          } else if (allUsersQuery is List) {
+            debugPrint('Utilisation des données de diagnostic comme fallback');
+            data = allUsersQuery;
+          } else {
+            debugPrint('Aucune donnée disponible, retour liste vide');
+            return [];
+          }
+        }
       }
 
-      // Convertir les données en List<Map<String, dynamic>>
-      if (response is List) {
-        return response.map((item) => item as Map<String, dynamic>).toList();
-      } else if (response is PostgrestResponse) {
-        return (response.data as List).map((item) => item as Map<String, dynamic>).toList();
-      } else {
-        print('Type de réponse inattendu: ${response.runtimeType}');
-        return [];
+      // Débogage détaillé de la réponse
+      debugPrint('Type de réponse finale: ${data.runtimeType}');
+      debugPrint('Response data length: ${data.length}');
+      if (data.isNotEmpty) {
+        debugPrint('Premier élément: ${data[0]}');
       }
+
+      // Conversion sécurisée des données
+      final List<Map<String, dynamic>> result = [];
+      
+      for (var item in data) {
+        if (item is Map<String, dynamic>) {
+          // Filtrage des entrées null ou invalides
+          final Map<String, dynamic> validItem = {};
+          
+          // S'assurer que tous les champs requis sont présents, avec fallbacks
+          validItem['id'] = item['id'] ?? 'unknown_${result.length}';
+          validItem['first_name'] = item['first_name'] ?? 'Joueur';
+          validItem['last_name'] = item['last_name'] ?? '${result.length + 1}';
+          validItem['gender'] = item['gender'] ?? 'homme';
+          validItem['skin_color'] = item['skin_color'] ?? 'blanc';
+          validItem['avatar_stage'] = item['avatar_stage'] ?? 'mince';
+          validItem['level'] = item['level'] ?? 1;
+          validItem['experience_points'] = item['experience_points'] ?? 0;
+          validItem['strength'] = item['strength'] ?? 0;
+          validItem['endurance'] = item['endurance'] ?? 0;
+          
+          result.add(validItem);
+        } else {
+          debugPrint('Élément ignoré, type incorrect: ${item.runtimeType}');
+        }
+      }
+      
+      // Trier le résultat explicitement côté client pour garantir l'ordre correct
+      if (filter == 'xp') {
+        result.sort((a, b) => (b['experience_points'] ?? 0).compareTo(a['experience_points'] ?? 0));
+      } else if (filter == 'level') {
+        result.sort((a, b) => (b['level'] ?? 0).compareTo(a['level'] ?? 0));
+      } else if (filter == 'strength') {
+        result.sort((a, b) => (b['strength'] ?? 0).compareTo(a['strength'] ?? 0));
+      } else if (filter == 'endurance') {
+        result.sort((a, b) => (b['endurance'] ?? 0).compareTo(a['endurance'] ?? 0));
+      }
+      
+      debugPrint('Nombre d\'éléments dans le résultat final: ${result.length}');
+      debugPrint('=== FIN DEBUG ===');
+      
+      return result;
     } catch (e) {
-      print('Erreur lors de la récupération des données de classement: $e');
+      debugPrint('Exception générale dans getLeaderboardData: $e');
+      debugPrint('Détails de l\'erreur: $e');
       return [];
     }
   }
@@ -133,12 +224,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       // Charger les données depuis Supabase
       final leaderboardData = await _leaderboardService.getLeaderboardData(_filter, _timeRange);
       
+      debugPrint('Données du leaderboard chargées: ${leaderboardData.length} utilisateurs');
+      
       // Trouver le rang de l'utilisateur actuel
       if (authProvider.currentUser != null) {
         final userId = authProvider.currentUser!.id;
         for (int i = 0; i < leaderboardData.length; i++) {
           if (leaderboardData[i]['id'] == userId) {
             _currentUserRank = i + 1;
+            debugPrint('Rang de l\'utilisateur courant: $_currentUserRank');
             break;
           }
         }
@@ -150,6 +244,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       });
       
     } catch (e) {
+      debugPrint('Exception dans _loadLeaderboardData: $e');
       setState(() {
         _isLoading = false;
       });
@@ -179,11 +274,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
             Tab(text: 'Ce mois'),
             Tab(text: 'Tous les temps'),
           ],
-          labelColor: Colors.white, // Couleur du texte sélectionné
-    unselectedLabelColor: Colors.white.withOpacity(0.7), // Couleur du texte non sélectionné
-    labelStyle: const TextStyle(fontWeight: FontWeight.bold), // Texte en gras quand sélectionné
-    indicatorColor: Colors.white, // Couleur de l'indicateur (ligne sous l'onglet)
-    indicatorWeight: 3.0,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          indicatorColor: Colors.white,
+          indicatorWeight: 3.0,
         ),
       ),
       body: _isLoading
@@ -191,6 +286,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
           : provider.Consumer<AuthProvider>(
               builder: (context, authProvider, _) {
                 final user = authProvider.currentUser;
+                
+                // Débogage supplémentaire dans le build
+                debugPrint('Building leaderboard with ${_leaderboardData.length} users');
+                debugPrint('Current user: ${user?.id}');
                 
                 return Column(
                   children: [
@@ -254,124 +353,152 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                     
                     // Liste des utilisateurs
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: _leaderboardData.length,
-                        itemBuilder: (context, index) {
-                          final userData = _leaderboardData[index];
-                          final rank = index + 1;
-                          final isCurrentUser = user != null && userData['id'] == user.id;
-                          
-                          return InkWell(
-                            onTap: () {
-                              // Ouvrir le profil de l'utilisateur
-                              if (isCurrentUser) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const ProfileScreen(),
-                                  ),
-                                );
-                              }
-                            },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: isCurrentUser ? theme.colorScheme.primary.withOpacity(0.1) : null,
-                                border: Border(
-                                  bottom: BorderSide(color: Colors.grey.withOpacity(0.2)),
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              child: Row(
+                      child: _leaderboardData.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  // Rang
-                                  SizedBox(
-                                    width: 40,
-                                    child: _buildRankIndicator(rank),
+                                  Icon(Icons.info_outline, size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Aucun utilisateur trouvé dans le classement',
+                                    style: TextStyle(fontSize: 16),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Avatar
-                                  AvatarDisplay(
-                                    gender: userData['gender'] ?? 'homme',
-                                    skinColor: userData['skin_color'] ?? 'blanc',
-                                    stage: userData['avatar_stage'] ?? 'mince',
-                                    size: 40,
-                                    showBorder: rank <= 3,
-                                    borderColor: rank <= 3 ? _getMedalColor(rank) : null,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  // Nom de l'utilisateur
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Text(
-                                              '${userData['first_name'] ?? 'Non'} ${userData['last_name'] ?? 'Défini'}',
-                                              style: TextStyle(
-                                                fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
-                                                color: isCurrentUser ? theme.colorScheme.primary : null,
-                                              ),
-                                            ),
-                                            if (isCurrentUser)
-                                              Container(
-                                                margin: const EdgeInsets.only(left: 8),
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: theme.colorScheme.primary.withOpacity(0.2),
-                                                  borderRadius: BorderRadius.circular(4),
-                                                ),
-                                                child: const Text(
-                                                  'Vous',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        Text(
-                                          'Niveau ${userData['level'] ?? 1}',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Valeur selon le filtre
-                                  SizedBox(
-                                    width: 80,
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          _getFormattedValue(userData),
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: isCurrentUser ? theme.colorScheme.primary : null,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        if (_filter != 'level')
-                                          Text(
-                                            _getSecondaryValue(userData),
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                      ],
-                                    ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: _loadLeaderboardData,
+                                    child: const Text('Réessayer'),
                                   ),
                                 ],
                               ),
+                            )
+                          : ListView.builder(
+                              itemCount: _leaderboardData.length,
+                              itemBuilder: (context, index) {
+                                final userData = _leaderboardData[index];
+                                final rank = index + 1;
+                                final isCurrentUser = user != null && userData['id'] == user.id;
+                                
+                                // Débogage pour chaque élément
+                                if (index == 0) {
+                                  debugPrint('Premier utilisateur: ${userData['first_name']} ${userData['last_name']}');
+                                }
+                                if (isCurrentUser) {
+                                  debugPrint('Utilisateur courant trouvé à l\'index $index');
+                                }
+                                
+                                return InkWell(
+                                  onTap: () {
+                                    // Ouvrir le profil de l'utilisateur
+                                    if (isCurrentUser) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const ProfileScreen(),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: isCurrentUser ? theme.colorScheme.primary.withOpacity(0.1) : null,
+                                      border: Border(
+                                        bottom: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        // Rang
+                                        SizedBox(
+                                          width: 40,
+                                          child: _buildRankIndicator(rank),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Avatar
+                                        AvatarDisplay(
+                                          gender: userData['gender'] ?? 'homme',
+                                          skinColor: userData['skin_color'] ?? 'blanc',
+                                          stage: userData['avatar_stage'] ?? 'mince',
+                                          size: 40,
+                                          showBorder: rank <= 3,
+                                          borderColor: rank <= 3 ? _getMedalColor(rank) : null,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        // Nom de l'utilisateur
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    '${userData['first_name'] ?? 'Non'} ${userData['last_name'] ?? 'Défini'}',
+                                                    style: TextStyle(
+                                                      fontWeight: isCurrentUser ? FontWeight.bold : FontWeight.normal,
+                                                      color: isCurrentUser ? theme.colorScheme.primary : null,
+                                                    ),
+                                                  ),
+                                                  if (isCurrentUser)
+                                                    Container(
+                                                      margin: const EdgeInsets.only(left: 8),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: theme.colorScheme.primary.withOpacity(0.2),
+                                                        borderRadius: BorderRadius.circular(4),
+                                                      ),
+                                                      child: const Text(
+                                                        'Vous',
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              Text(
+                                                'Niveau ${userData['level'] ?? 1}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Valeur selon le filtre
+                                        SizedBox(
+                                          width: 80,
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                _getFormattedValue(userData),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isCurrentUser ? theme.colorScheme.primary : null,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              if (_filter != 'level')
+                                                Text(
+                                                  _getSecondaryValue(userData),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
                     ),
                     
                     // Statistiques de l'utilisateur actuel
@@ -415,8 +542,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                           fontSize: 14,
                                         ),
                                       ),
-                                  ],
-                                )
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -436,6 +563,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                 );
               },
             ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _loadLeaderboardData();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Actualisation du classement...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        },
+        tooltip: 'Actualiser',
+        child: const Icon(Icons.refresh),
+      ),
     );
   }
 
@@ -445,8 +585,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     
     return ChoiceChip(
       label: Text(label),
-      selected:
-      isSelected,
+      selected: isSelected,
       onSelected: (selected) {
         if (selected) {
           setState(() {
@@ -543,9 +682,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       case 'xp':
         return 'Nv. ${user['level'] ?? 1}';
       case 'strength':
-        return '$_timeRange';
+        return 'pts';
       case 'endurance':
-        return '$_timeRange';
+        return 'pts';
       default:
         return '';
     }

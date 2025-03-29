@@ -28,15 +28,12 @@ class SupabaseRoutineDatasource {
 
 Future<List<Map<String, dynamic>>> getUserRoutines(String userId) async {
   try {
-    debugPrint('Récupération des routines pour utilisateur: $userId');
-
     final response = await _client
         .from('user_routines')
         .select('*, routines(*)')
         .eq('profile_id', userId);
 
-    debugPrint('Response brute: $response');
-    debugPrint('Type de response: ${response.runtimeType}');
+    debugPrint('User Routines : $response');
     
     // Gestion adéquate du format de réponse
     if (response is List) {
