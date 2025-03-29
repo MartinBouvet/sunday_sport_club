@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
+import 'routine.dart';
 
 class UserRoutine {
   final String id;
   final String userId;
   final String routineId;
   final DateTime assignedDate;
-  final String status; // 'assigned', 'in_progress', 'completed', 'validated'
+  final String status; // 'pending', 'in_progress', 'completed', 'validated'
   final DateTime? completionDate;
-  final String? validatedBy; // ID du coach qui a validé la routine
+  final String? validatedBy;
   final int? experienceGained;
   final String? feedback;
+  final Routine? routine; // Relation avec la routine
 
   UserRoutine({
     required this.id,
@@ -21,113 +23,60 @@ class UserRoutine {
     this.validatedBy,
     this.experienceGained,
     this.feedback,
+    this.routine,
   });
 
   factory UserRoutine.fromJson(Map<String, dynamic> json) {
-    debugPrint('Processing UserRoutine JSON: ${json.keys}');
-    
     try {
-      // Extraction de l'ID
-      final String id = json['id']?.toString() ?? '';
-      if (id.isEmpty) {
-        debugPrint('WARNING: UserRoutine ID is missing');
-      }
-      
-      // Extraction de l'ID utilisateur (vérifier les différentes clés possibles)
-      String userId = '';
-      if (json.containsKey('user_id')) {
-        userId = json['user_id']?.toString() ?? '';
-      } else if (json.containsKey('profile_id')) {
-        userId = json['profile_id']?.toString() ?? '';
-      }
-      
-      if (userId.isEmpty) {
-        debugPrint('WARNING: UserID is missing in UserRoutine');
-      }
-      
-      // Extraction du routineId avec support pour les données imbriquées
-      String routineId = '';
-      if (json.containsKey('routine_id')) {
-        routineId = json['routine_id']?.toString() ?? '';
-      } else if (json.containsKey('routines') && json['routines'] != null) {
-        // Si les données de routine sont imbriquées (jointure)
-        final routines = json['routines'];
-        if (routines is Map<String, dynamic>) {
-          routineId = routines['id']?.toString() ?? '';
-          debugPrint('Found nested routine ID: $routineId');
-        }
-      }
-      
-      if (routineId.isEmpty) {
-        debugPrint('WARNING: RoutineID is missing in UserRoutine data');
-      }
-      
-      // Conversion sécurisée des dates
+      String userId = json['user_id'] ?? json['profile_id'] ?? '';
+      String routineId = json['routine_id'] ?? '';
+
       DateTime assignedDate;
       try {
-        assignedDate = json['assigned_date'] != null 
-            ? DateTime.parse(json['assigned_date'].toString()) 
-            : DateTime.now();
+        assignedDate =
+            json['assigned_date'] != null
+                ? DateTime.parse(json['assigned_date'])
+                : DateTime.now();
       } catch (e) {
-        debugPrint('WARNING: Invalid date format for assigned_date: ${json['assigned_date']}');
+        debugPrint('Erreur date assignedDate: $e');
         assignedDate = DateTime.now();
       }
-      
-      // Statut avec normalisation pour s'assurer qu'il correspond aux valeurs attendues
-      String status = 'assigned'; // default value
-      if (json['status'] != null) {
-        String rawStatus = json['status'].toString().toLowerCase();
-        
-        // Normalisation des statuts
-        if (rawStatus.contains('assign') || rawStatus.contains('assigné')) {
-          status = 'assigned';
-        } else if (rawStatus.contains('progress') || rawStatus.contains('en cours')) {
-          status = 'in_progress';
-        } else if (rawStatus.contains('completé') || rawStatus.contains('terminé')) {
-          status = 'completed';
-        } else if (rawStatus.contains('validé')) {
-          status = 'validated';
-        } else {
-          status = rawStatus; // keep as is if no match
-        }
-        
-        debugPrint('Normalized status from "${json['status']}" to "$status"');
-      }
-      
-      // Date de complétion optionnelle
+
       DateTime? completionDate;
       if (json['completion_date'] != null) {
         try {
-          completionDate = DateTime.parse(json['completion_date'].toString());
+          completionDate = DateTime.parse(json['completion_date']);
         } catch (e) {
-          debugPrint('WARNING: Invalid date format for completion_date: ${json['completion_date']}');
+          debugPrint('Erreur date completionDate: $e');
         }
       }
-      
-      // Construction de l'objet
+
+      // Récupération de la routine associée
+      Routine? routine;
+      if (json['routines'] != null) {
+        try {
+          routine = Routine.fromJson(json['routines']);
+        } catch (e) {
+          debugPrint('Erreur parsing routine associée: $e');
+        }
+      }
+
       return UserRoutine(
-        id: id,
+        id: json['id'] ?? '',
         userId: userId,
         routineId: routineId,
         assignedDate: assignedDate,
-        status: status,
+        status: json['status'] ?? 'pending',
         completionDate: completionDate,
-        validatedBy: json['validated_by']?.toString(),
-        experienceGained: json['experience_gained'] is int 
-            ? json['experience_gained'] 
-            : json['experience_gained'] != null 
-                ? int.tryParse(json['experience_gained'].toString()) 
-                : null,
-        feedback: json['feedback']?.toString(),
+        validatedBy: json['validated_by'],
+        experienceGained: json['experience_gained'],
+        feedback: json['feedback'],
+        routine: routine,
       );
-    } catch (e, stackTrace) {
-      debugPrint('ERROR parsing UserRoutine: $e');
-      debugPrint('Stack trace: $stackTrace');
-      debugPrint('Problematic JSON: $json');
-      
-      // Retourner un objet minimal mais valide plutôt que de planter
+    } catch (e) {
+      debugPrint('ERREUR parsing UserRoutine: $e');
       return UserRoutine(
-        id: json['id']?.toString() ?? 'error-${DateTime.now().millisecondsSinceEpoch}',
+        id: 'error-${DateTime.now().millisecondsSinceEpoch}',
         userId: '',
         routineId: '',
         assignedDate: DateTime.now(),
@@ -137,56 +86,16 @@ class UserRoutine {
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
+    return {
       'id': id,
-      'profile_id': userId, // Utiliser profile_id pour compatibilité avec la base de données
+      'user_id': userId,
       'routine_id': routineId,
       'assigned_date': assignedDate.toIso8601String(),
       'status': status,
+      'completion_date': completionDate?.toIso8601String(),
+      'validated_by': validatedBy,
+      'experience_gained': experienceGained,
+      'feedback': feedback,
     };
-    
-    if (completionDate != null) {
-      data['completion_date'] = completionDate!.toIso8601String();
-    }
-    if (validatedBy != null) {
-      data['validated_by'] = validatedBy;
-    }
-    if (experienceGained != null) {
-      data['experience_gained'] = experienceGained;
-    }
-    if (feedback != null) {
-      data['feedback'] = feedback;
-    }
-    
-    return data;
-  }
-
-  UserRoutine copyWith({
-    String? id,
-    String? userId,
-    String? routineId,
-    DateTime? assignedDate,
-    String? status,
-    DateTime? completionDate,
-    String? validatedBy,
-    int? experienceGained,
-    String? feedback,
-  }) {
-    return UserRoutine(
-      id: id ?? this.id,
-      userId: userId ?? this.userId,
-      routineId: routineId ?? this.routineId,
-      assignedDate: assignedDate ?? this.assignedDate,
-      status: status ?? this.status,
-      completionDate: completionDate ?? this.completionDate,
-      validatedBy: validatedBy ?? this.validatedBy,
-      experienceGained: experienceGained ?? this.experienceGained,
-      feedback: feedback ?? this.feedback,
-    );
-  }
-  
-  @override
-  String toString() {
-    return 'UserRoutine{id: $id, userId: $userId, routineId: $routineId, status: $status}';
   }
 }

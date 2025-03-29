@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/error_display.dart';
-import '../../../data/models/routine.dart';
-import '../../../data/models/user_routine.dart';
 import '../../providers/routine_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'routine_detail_screen.dart';
-import '../profile/profile_screen.dart';
-import '../courses/course_list_screen.dart';
 import '../home/home_screen.dart';
+import '../courses/course_list_screen.dart';
+import '../profile/profile_screen.dart';
+import '../../../data/models/routine.dart';
+import '../../../data/models/user_routine.dart';
 
 class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
@@ -19,15 +20,13 @@ class RoutinesScreen extends StatefulWidget {
 }
 
 class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProviderStateMixin {
-  bool _isLoading = true;
   late TabController _tabController;
-  int _currentTabIndex = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_handleTabSelection);
     
     // Chargement asynchrone à l'initialisation du widget
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37,29 +36,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
 
   @override
   void dispose() {
-    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     super.dispose();
   }
 
-  void _handleTabSelection() {
-    if (_tabController.indexIsChanging) {
-      setState(() {
-        _currentTabIndex = _tabController.index;
-      });
-    }
-  }
-
   Future<void> _loadRoutines() async {
-    if (!mounted) return;
-    
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
 
       if (authProvider.currentUser != null) {
         debugPrint("Récupération des routines pour l'utilisateur: ${authProvider.currentUser!.id}");
@@ -71,8 +59,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         await routineProvider.fetchUserRoutines(authProvider.currentUser!.id);
       }
     } catch (e) {
-      debugPrint("Erreur lors du chargement des routines: $e");
-      // Error handling is done by the provider
+      debugPrint('Erreur lors du chargement des routines: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -86,7 +73,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Routines'),
+        title: const Text('Mes routines'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -98,7 +85,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
           unselectedLabelColor: Colors.white.withOpacity(0.7),
           labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           indicatorColor: Colors.white,
-          indicatorWeight: 3.0,
         ),
       ),
       body: Consumer<AuthProvider>(
@@ -113,7 +99,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
 
           return Consumer<RoutineProvider>(
             builder: (context, routineProvider, _) {
-              if (_isLoading) {
+              if (_isLoading || routineProvider.isLoading) {
                 return const LoadingIndicator(
                   center: true,
                   message: 'Chargement des routines...',
@@ -163,17 +149,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _loadRoutines,
-        tooltip: 'Rafraîchir',
-        child: const Icon(Icons.refresh),
-      ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1, // Onglet actif (Routines)
+        currentIndex: 1, // Routines
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -218,13 +196,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
           }
         },
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _loadRoutines,
+        tooltip: 'Rafraîchir',
+        child: const Icon(Icons.refresh),
+      ),
     );
   }
 
   Widget _buildEmptyState() {
     String message = '';
     
-    switch (_currentTabIndex) {
+    switch (_tabController.index) {
       case 0:
         message = 'Aucune routine disponible actuellement';
         break;

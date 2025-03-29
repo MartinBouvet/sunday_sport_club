@@ -6,95 +6,90 @@ import '../datasources/supabase/supabase_routine_datasource.dart';
 class RoutineRepository {
   final SupabaseRoutineDatasource _datasource = SupabaseRoutineDatasource();
 
-  // Récupérer toutes les routines disponibles
   Future<List<Routine>> getAllRoutines() async {
     try {
-      final response = await _datasource.getAllRoutines();
-      debugPrint("getAllRoutines: ${response.length} routines récupérées");
-      
-      List<Routine> routines = [];
-      for (var data in response) {
-        try {
-          routines.add(Routine.fromJson(data));
-        } catch (e) {
-          debugPrint("Erreur lors de la conversion de routine: $e");
-        }
-      }
-      
-      debugPrint("Conversion de ${routines.length} routines depuis JSON");
-      return routines;
+      final routinesData = await _datasource.getAllRoutines();
+      return routinesData.map((data) => Routine.fromJson(data)).toList();
     } catch (e) {
-      debugPrint("Erreur lors de la récupération de toutes les routines: $e");
+      debugPrint('Erreur getAllRoutines: $e');
       return [];
     }
   }
 
-  // Récupérer une routine spécifique par ID
   Future<Routine?> getRoutine(String routineId) async {
     try {
-      final response = await _datasource.getRoutine(routineId);
-      return Routine.fromJson(response);
+      final routineData = await _datasource.getRoutine(routineId);
+      return Routine.fromJson(routineData);
     } catch (e) {
-      debugPrint("Erreur lors de la récupération de la routine $routineId: $e");
+      debugPrint('Erreur getRoutine: $e');
       return null;
     }
   }
 
-  // Récupérer toutes les routines d'un utilisateur
   Future<List<UserRoutine>> getUserRoutines(String userId) async {
     try {
-      final response = await _datasource.getUserRoutines(userId);
-      debugPrint("getUserRoutines: ${response.length} routines trouvées");
-      
-      List<UserRoutine> userRoutines = [];
-      for (var data in response) {
-        try {
-          // Vérifions le format des données
-          debugPrint("Data: ${data.toString().substring(0, min(100, data.toString().length))}...");
-          userRoutines.add(UserRoutine.fromJson(data));
-        } catch (e) {
-          debugPrint("Erreur de conversion pour UserRoutine: $e");
+      final userRoutinesData = await _datasource.getUserRoutines(userId);
+
+      return userRoutinesData.map((data) {
+        final routineData = data['routines'];
+        Routine? routine;
+
+        if (routineData != null) {
+          routine = Routine.fromJson(routineData);
         }
-      }
-      
-      return userRoutines;
+
+        return UserRoutine.fromJson({...data, 'routine': routine});
+      }).toList();
     } catch (e) {
-      debugPrint("Erreur lors de la récupération des routines utilisateur: $e");
+      debugPrint('Erreur getUserRoutines: $e');
       return [];
     }
   }
 
-  // Créer une nouvelle routine utilisateur
-  Future<void> createUserRoutine(UserRoutine userRoutine) async {
+  Future<bool> completeUserRoutine(String userRoutineId) async {
     try {
-      await _datasource.createUserRoutine(userRoutine.toJson());
+      await _datasource.updateUserRoutineStatus(userRoutineId, 'completed');
+      return true;
     } catch (e) {
-      debugPrint("Erreur lors de la création de la routine utilisateur: $e");
-      rethrow;
+      debugPrint('Erreur completeUserRoutine: $e');
+      return false;
     }
   }
 
-  // Mettre à jour le statut d'une routine utilisateur
-  Future<void> updateUserRoutineStatus(String userRoutineId, String status) async {
+  // Pour créer des données de test
+  Future<String> createRoutineForUser(String userId) async {
     try {
-      await _datasource.updateUserRoutineStatus(userRoutineId, status);
+      // Créer routine
+      final routineId = await _datasource.createTestRoutine();
+
+      // Assigner à l'utilisateur
+      final userRoutineData = {
+        'user_id': userId,
+        'routine_id': routineId,
+        'assigned_date': DateTime.now().toIso8601String(),
+        'status': 'pending',
+      };
+
+      return await _datasource.createUserRoutine(userRoutineData);
     } catch (e) {
-      debugPrint("Erreur lors de la mise à jour du statut: $e");
-      rethrow;
+      debugPrint('Erreur createRoutineForUser: $e');
+      return '';
     }
   }
-  
-  // Obtenir le nombre de routines en attente de validation
+
   Future<int> getPendingValidationCount() async {
-    try {
-      final routines = await _datasource.getPendingValidationRoutines();
-      return routines.length;
-    } catch (e) {
-      debugPrint("Erreur lors du comptage des routines en attente: $e");
-      return 0;
-    }
+  try {
+    // Utiliser le datasource pour récupérer les routines en attente
+    final pendingRoutines = await _datasource.getPendingValidationRoutines();
+    
+    // Retourner le nombre d'éléments dans la liste
+    return pendingRoutines.length;
+  } catch (e) {
+    debugPrint('Erreur lors du comptage des routines en attente de validation: $e');
+    
+    // En cas d'erreur, retourner 0 comme valeur sécuritaire par défaut
+    // Cela évite de bloquer l'affichage de l'UI en cas de problème
+    return 0;
   }
 }
-
-// Fonction utilitaire pour obtenir le minimum de 2 nombres
-int min(int a, int b) => a < b ? a : b;
+}
