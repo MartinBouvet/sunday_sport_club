@@ -4,28 +4,37 @@ import 'package:intl/intl.dart';
 import '../../../core/widgets/loading_indicator.dart';
 import '../../../core/widgets/error_display.dart';
 import '../../../data/models/course.dart';
-import '../../providers/booking_provider.dart';
+import '../../providers/course_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'course_detail_screen.dart';
 import 'user_bookings_screen.dart';
 
 class CourseListScreen extends StatefulWidget {
-  const CourseListScreen({Key? key}) : super(key: key);
+  const CourseListScreen({super.key});
 
   @override
   State<CourseListScreen> createState() => _CourseListScreenState();
 }
 
-class _CourseListScreenState extends State<CourseListScreen> {
+class _CourseListScreenState extends State<CourseListScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _isLoading = false;
-  DateTime _selectedDate = DateTime.now();
-  String _selectedType = 'all'; // 'all', 'individuel', 'collectif'
-  int _weekOffset = 0;
+  String _filter = 'all'; // 'all', 'individuel', 'collectif'
+  DateTime _startDate = DateTime.now();
+  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadCourses();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCourses() async {
@@ -34,39 +43,24 @@ class _CourseListScreenState extends State<CourseListScreen> {
     });
 
     try {
-      // Calculer les dates de début et fin de la semaine sélectionnée
-      DateTime startDate = _getStartOfWeek(_selectedDate);
-      DateTime endDate = startDate.add(const Duration(days: 6));
-
-      // Charger les cours pour cette période
-      await Provider.of<BookingProvider>(
+      final courseProvider = Provider.of<CourseProvider>(
         context,
         listen: false,
-      ).fetchAvailableCourses(
-        startDate: startDate,
-        endDate: endDate,
-        type: _selectedType == 'all' ? null : _selectedType,
+      );
+      await courseProvider.fetchAvailableCourses(
+        startDate: _startDate,
+        endDate: _endDate,
+        type: _filter == 'all' ? null : _filter,
       );
     } catch (e) {
-      // L'erreur est gérée par le provider
+      // Error handled by provider
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  DateTime _getStartOfWeek(DateTime date) {
-    // Trouver le lundi de la semaine
-    return date.subtract(Duration(days: date.weekday - 1));
-  }
-
-  void _changeWeek(int offset) {
-    setState(() {
-      _weekOffset += offset;
-      _selectedDate = DateTime.now().add(Duration(days: _weekOffset * 7));
-    });
-    _loadCourses();
   }
 
   @override
@@ -74,244 +68,108 @@ class _CourseListScreenState extends State<CourseListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cours disponibles'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [Tab(text: 'Disponibles'), Tab(text: 'Mes réservations')],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_today),
-            onPressed: () async {
-              // Sélectionner une date spécifique
-              final DateTime? pickedDate = await showDatePicker(
-                context: context,
-                initialDate: _selectedDate,
-                firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                lastDate: DateTime.now().add(const Duration(days: 365)),
-              );
-              if (pickedDate != null && pickedDate != _selectedDate) {
-                setState(() {
-                  _selectedDate = pickedDate;
-                  _weekOffset = 0; // Réinitialiser l'offset
-                });
-                _loadCourses();
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.bookmark),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const UserBookingsScreen(),
-                ),
-              );
-            },
-            tooltip: 'Mes réservations',
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+            tooltip: 'Filtrer',
           ),
         ],
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Filtres et sélecteur de semaine
-          _buildFilters(),
+          // Tab 1: Available Courses
+          _buildAvailableCoursesTab(),
 
-          // Liste des cours
-          Expanded(
-            child:
-                _isLoading
-                    ? const LoadingIndicator(
-                      center: true,
-                      message: 'Chargement des cours...',
-                    )
-                    : Consumer<BookingProvider>(
-                      builder: (context, bookingProvider, _) {
-                        if (bookingProvider.hasError) {
-                          return ErrorDisplay(
-                            message: bookingProvider.errorMessage!,
-                            type: ErrorType.network,
-                            actionLabel: 'Réessayer',
-                            onAction: _loadCourses,
-                          );
-                        }
-
-                        final courses = bookingProvider.availableCourses;
-
-                        if (courses.isEmpty) {
-                          return _buildEmptyState();
-                        }
-
-                        // Organiser les cours par jour
-                        final Map<String, List<Course>> coursesByDay = {};
-                        for (var course in courses) {
-                          final dateString = DateFormat(
-                            'yyyy-MM-dd',
-                          ).format(course.date);
-                          if (!coursesByDay.containsKey(dateString)) {
-                            coursesByDay[dateString] = [];
-                          }
-                          coursesByDay[dateString]!.add(course);
-                        }
-
-                        // Trier les jours
-                        final sortedDays = coursesByDay.keys.toList()..sort();
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: sortedDays.length,
-                          itemBuilder: (context, index) {
-                            final day = sortedDays[index];
-                            final coursesForDay = coursesByDay[day]!;
-
-                            // Formater la date d'affichage (ex: Lundi 1 Janvier)
-                            final date = DateTime.parse(day);
-                            final formattedDate = DateFormat.yMMMMEEEEd()
-                                .format(date);
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // En-tête du jour
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12.0,
-                                  ),
-                                  child: Text(
-                                    formattedDate,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-
-                                // Cours du jour
-                                ...coursesForDay.map(
-                                  (course) => _buildCourseCard(course),
-                                ),
-
-                                // Séparateur entre les jours
-                                const SizedBox(height: 16),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    ),
-          ),
+          // Tab 2: User's Bookings
+          _navigateToBookingsScreen(),
         ],
       ),
     );
   }
 
-  Widget _buildFilters() {
-    final DateTime startOfWeek = _getStartOfWeek(_selectedDate);
-    final DateTime endOfWeek = startOfWeek.add(const Duration(days: 6));
+  Widget _buildAvailableCoursesTab() {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        final user = authProvider.currentUser;
 
-    return Column(
-      children: [
-        // Sélecteur de semaine
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () => _changeWeek(-1),
-              ),
-              Text(
-                '${DateFormat.MMMd().format(startOfWeek)} - ${DateFormat.MMMd().format(endOfWeek)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () => _changeWeek(1),
-              ),
-            ],
-          ),
-        ),
+        if (user == null) {
+          return const Center(
+            child: Text('Veuillez vous connecter pour accéder à cette page'),
+          );
+        }
 
-        // Filtres par type
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            children: [
-              const Text('Filtrer par type:'),
-              const SizedBox(width: 16),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('Tous', 'all'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Individuels', 'individuel'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Collectifs', 'collectif'),
-                    ],
-                  ),
-                ),
+        return Consumer<CourseProvider>(
+          builder: (context, courseProvider, _) {
+            if (_isLoading || courseProvider.isLoading) {
+              return const LoadingIndicator(
+                center: true,
+                message: 'Chargement des cours...',
+              );
+            }
+
+            if (courseProvider.hasError) {
+              return ErrorDisplay(
+                message: courseProvider.errorMessage!,
+                type: ErrorType.network,
+                actionLabel: 'Réessayer',
+                onAction: _loadCourses,
+              );
+            }
+
+            final courses = courseProvider.availableCourses;
+
+            if (courses.isEmpty) {
+              return const Center(
+                child: Text('Aucun cours disponible pour le moment'),
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: _loadCourses,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: courses.length,
+                itemBuilder: (context, index) {
+                  final course = courses[index];
+                  return _buildCourseCard(context, course);
+                },
               ),
-            ],
-          ),
-        ),
-        const Divider(),
-      ],
-    );
-  }
-
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = _selectedType == value;
-
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _selectedType = value;
-        });
-        _loadCourses();
+            );
+          },
+        );
       },
-      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-      checkmarkColor: Theme.of(context).colorScheme.primary,
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun cours disponible pour cette période',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Essayez une autre semaine ou modifiez vos filtres',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+  Widget _navigateToBookingsScreen() {
+    // When this tab is selected, navigate to the bookings screen
+    WidgetsBinding.instance?.addPostFrameCallback((_) {
+      if (_tabController.index == 1) {
+        _tabController.animateTo(0); // Switch back to first tab
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const UserBookingsScreen()),
+        );
+      }
+    });
+
+    // Return empty container as placeholder
+    return Container();
   }
 
-  Widget _buildCourseCard(Course course) {
-    final bool isAvailable =
-        course.status == 'available' &&
-        course.currentParticipants < course.capacity;
-
-    // Déterminer couleur en fonction du type de cours
-    Color courseColor =
-        course.type == 'individuel' ? Colors.indigo : Colors.teal;
+  Widget _buildCourseCard(BuildContext context, Course course) {
+    final Color cardColor =
+        course.type == 'individuel' ? Colors.blue : Colors.green;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
@@ -320,107 +178,263 @@ class _CourseListScreenState extends State<CourseListScreen> {
             MaterialPageRoute(
               builder: (context) => CourseDetailScreen(course: course),
             ),
-          ).then((_) => _loadCourses());
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Heure du cours
-              Column(
-                mainAxisSize: MainAxisSize.min,
+              // Course title and type badge
+              Row(
                 children: [
-                  Text(
-                    course.startTime,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                  Expanded(
+                    child: Text(
+                      course.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  Text(
-                    course.endTime,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cardColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: cardColor.withOpacity(0.5)),
+                    ),
+                    child: Text(
+                      course.type == 'individuel' ? 'Individuel' : 'Collectif',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: cardColor,
+                      ),
+                    ),
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
 
-              // Séparateur vertical
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 12),
-                width: 2,
-                height: 60,
-                color: courseColor.withOpacity(0.2),
+              // Description
+              Text(
+                course.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
+              const SizedBox(height: 16),
 
-              // Détails du cours
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.title,
-                      style: const TextStyle(
+              // Date, time and availability
+              Row(
+                children: [
+                  // Date
+                  Icon(Icons.event, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    DateFormat('dd/MM/yyyy').format(course.date),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(width: 16),
+
+                  // Time
+                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${course.startTime} - ${course.endTime}',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+
+                  const Spacer(),
+
+                  // Availability
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getAvailabilityColor(course).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${course.currentParticipants}/${course.capacity}',
+                      style: TextStyle(
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        color: _getAvailabilityColor(course),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      course.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: courseColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            course.type == 'individuel'
-                                ? 'Individuel'
-                                : 'Collectif',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: courseColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${course.currentParticipants}/${course.capacity} places',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isAvailable ? Colors.grey[600] : Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Badge de disponibilité
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isAvailable ? Colors.green : Colors.red,
-                ),
+                  ),
+                ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getAvailabilityColor(Course course) {
+    if (course.currentParticipants >= course.capacity) {
+      return Colors.red;
+    } else if (course.currentParticipants >= course.capacity * 0.8) {
+      return Colors.orange;
+    } else {
+      return Colors.green;
+    }
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Filtrer les cours'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Type filter
+                  const Text(
+                    'Type de cours',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _buildFilterChip(
+                        'Tous',
+                        _filter == 'all',
+                        () => setState(() => _filter = 'all'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Individuel',
+                        _filter == 'individuel',
+                        () => setState(() => _filter = 'individuel'),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Collectif',
+                        _filter == 'collectif',
+                        () => setState(() => _filter = 'collectif'),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Date range
+                  const Text(
+                    'Période',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _startDate,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
+                            );
+                            if (date != null) {
+                              setState(() {
+                                _startDate = date;
+                                if (_startDate.isAfter(_endDate)) {
+                                  _endDate = _startDate.add(
+                                    const Duration(days: 30),
+                                  );
+                                }
+                              });
+                            }
+                          },
+                          child: Text(
+                            DateFormat('dd/MM/yyyy').format(_startDate),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('au'),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _endDate,
+                              firstDate: _startDate,
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365),
+                              ),
+                            );
+                            if (date != null) {
+                              setState(() {
+                                _endDate = date;
+                              });
+                            }
+                          },
+                          child: Text(
+                            DateFormat('dd/MM/yyyy').format(_endDate),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _loadCourses();
+                  },
+                  child: const Text('Appliquer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey[200],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 14,
           ),
         ),
       ),

@@ -1,339 +1,408 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/loading_indicator.dart';
+import '../../../core/widgets/error_display.dart';
 import '../../../data/models/course.dart';
-import 'course_booking_screen.dart';
+import '../../../data/models/membership_card.dart';
+import '../../providers/booking_provider.dart';
+import '../../providers/auth_provider.dart';
+import 'booking_success_screen.dart';
 
-class CourseDetailScreen extends StatelessWidget {
+class CourseDetailScreen extends StatefulWidget {
   final Course course;
 
   const CourseDetailScreen({Key? key, required this.course}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final bool isAvailable =
-        course.status == 'available' &&
-        course.currentParticipants < course.capacity;
-    final bool isFull = course.currentParticipants >= course.capacity;
-    final bool isCancelled = course.status == 'cancelled';
-    final bool isPast = course.date.isBefore(DateTime.now());
+  State<CourseDetailScreen> createState() => _CourseDetailScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Détail du cours')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // En-tête
-            _buildCourseHeader(context),
+class _CourseDetailScreenState extends State<CourseDetailScreen> {
+  bool _isLoading = false;
+  String? _selectedCardId;
 
-            const SizedBox(height: 24),
+  @override
+  void initState() {
+    super.initState();
+    _loadMembershipCards();
+  }
 
-            // Détails du cours
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Détails du cours',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+  Future<void> _loadMembershipCards() async {
+    setState(() {
+      _isLoading = true;
+    });
 
-                    _buildDetailItem(
-                      Icons.calendar_today,
-                      'Date',
-                      DateFormat.yMMMMd().format(course.date),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildDetailItem(
-                      Icons.access_time,
-                      'Horaire',
-                      '${course.startTime} - ${course.endTime}',
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildDetailItem(
-                      course.type == 'individuel' ? Icons.person : Icons.group,
-                      'Type de cours',
-                      course.type == 'individuel' ? 'Individuel' : 'Collectif',
-                    ),
-                    const SizedBox(height: 12),
-
-                    _buildDetailItem(
-                      Icons.people,
-                      'Participants',
-                      '${course.currentParticipants}/${course.capacity}',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Description du cours
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Description',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Text(
-                      course.description,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[800],
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Information sur la disponibilité
-            _buildAvailabilityInfo(isAvailable, isFull, isCancelled, isPast),
-
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
-      bottomNavigationBar: _buildBottomBar(
+    try {
+      final bookingProvider = Provider.of<BookingProvider>(
         context,
-        isAvailable,
-        isFull,
-        isCancelled,
-        isPast,
+        listen: false,
+      );
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      if (authProvider.currentUser != null) {
+        await bookingProvider.fetchUserMembershipCards(
+          authProvider.currentUser!.id,
+        );
+      }
+    } catch (e) {
+      // Error handled by provider
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Détails du cours')),
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, _) {
+          final user = authProvider.currentUser;
+
+          if (user == null) {
+            return const Center(
+              child: Text('Veuillez vous connecter pour accéder à cette page'),
+            );
+          }
+
+          return Consumer<BookingProvider>(
+            builder: (context, bookingProvider, _) {
+              if (_isLoading || bookingProvider.isLoading) {
+                return const LoadingIndicator(
+                  center: true,
+                  message: 'Chargement des informations...',
+                );
+              }
+
+              if (bookingProvider.hasError) {
+                return ErrorDisplay(
+                  message: bookingProvider.errorMessage!,
+                  type: ErrorType.network,
+                  actionLabel: 'Réessayer',
+                  onAction: _loadMembershipCards,
+                );
+              }
+
+              final userCards =
+                  bookingProvider.userMembershipCards.where((card) {
+                    // Filtrer les cartes valides pour ce cours
+                    final bool hasRemainingSessions =
+                        card.remainingSessions > 0;
+                    final bool notExpired = card.expiryDate.isAfter(
+                      DateTime.now(),
+                    );
+                    final bool validType =
+                        card.type == 'collectif' ||
+                        card.type == widget.course.type;
+
+                    return hasRemainingSessions && notExpired && validType;
+                  }).toList();
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Carte d'informations du cours
+                    _buildCourseCard(),
+
+                    const SizedBox(height: 24),
+
+                    // Sélection de la carte de membre
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Sélectionner un carnet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            if (userCards.isEmpty) ...[
+                              const Center(
+                                child: Text(
+                                  'Vous n\'avez pas de carnet valide pour ce cours',
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.grey,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              AppButton(
+                                text: 'Acheter un carnet',
+                                onPressed: () {
+                                  // Naviguer vers l'écran d'achat de carnet
+                                  Navigator.of(context).pop();
+                                },
+                                type: AppButtonType.primary,
+                                size: AppButtonSize.medium,
+                                fullWidth: true,
+                                icon: Icons.card_membership,
+                              ),
+                            ] else ...[
+                              ...userCards.map(
+                                (card) => _buildCardOption(card),
+                              ),
+                              const SizedBox(height: 24),
+                              AppButton(
+                                text: 'Confirmer la réservation',
+                                onPressed:
+                                    userCards.isEmpty || _selectedCardId == null
+                                        ? null
+                                        : () => _confirmBooking(
+                                          user.id,
+                                          widget.course.id,
+                                          _selectedCardId!,
+                                          bookingProvider,
+                                        ),
+                                type: AppButtonType.primary,
+                                size: AppButtonSize.large,
+                                fullWidth: true,
+                                icon: Icons.check_circle,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
-  Widget _buildCourseHeader(BuildContext context) {
-    // Icône en fonction du type de cours
-    IconData courseIcon =
-        course.type == 'individuel' ? Icons.person : Icons.group;
-    Color courseColor =
-        course.type == 'individuel' ? Colors.indigo : Colors.teal;
+  Widget _buildCourseCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Titre du cours
+            Text(
+              widget.course.title,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Icône du cours
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: courseColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(courseIcon, color: courseColor, size: 32),
+            // Description
+            Text(
+              widget.course.description,
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            ),
+            const SizedBox(height: 16),
+
+            // Détails du cours
+            _buildDetailItem(
+              icon: Icons.class_,
+              label: 'Type',
+              value:
+                  widget.course.type == 'individuel'
+                      ? 'Cours individuel'
+                      : 'Cours collectif',
+            ),
+
+            _buildDetailItem(
+              icon: Icons.event,
+              label: 'Date',
+              value: DateFormat('dd/MM/yyyy').format(widget.course.date),
+            ),
+
+            _buildDetailItem(
+              icon: Icons.access_time,
+              label: 'Horaire',
+              value: '${widget.course.startTime} - ${widget.course.endTime}',
+            ),
+
+            _buildDetailItem(
+              icon: Icons.people,
+              label: 'Places',
+              value:
+                  '${widget.course.currentParticipants}/${widget.course.capacity}',
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
+      ),
+    );
+  }
 
-        // Titre et détails rapides
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildDetailItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[600]),
+          const SizedBox(width: 12),
+          Text(
+            '$label: ',
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardOption(MembershipCard card) {
+    final bool isSelected = _selectedCardId == card.id;
+    final Color cardColor =
+        card.type == 'individuel' ? Colors.indigo : Colors.teal;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedCardId = card.id;
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: isSelected ? cardColor : Colors.grey.withOpacity(0.5),
+              width: isSelected ? 2 : 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            color: isSelected ? cardColor.withOpacity(0.1) : null,
+          ),
+          child: Row(
             children: [
-              Text(
-                course.title,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+              Radio<String>(
+                value: card.id,
+                groupValue: _selectedCardId,
+                onChanged: (String? value) {
+                  setState(() {
+                    _selectedCardId = value;
+                  });
+                },
+                activeColor: cardColor,
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          course.type == 'individuel'
-                              ? Colors.indigo.withOpacity(0.1)
-                              : Colors.teal.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      course.type == 'individuel' ? 'Individuel' : 'Collectif',
-                      style: TextStyle(
-                        color:
-                            course.type == 'individuel'
-                                ? Colors.indigo
-                                : Colors.teal,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      card.type == 'individuel'
+                          ? 'Carnet individuel'
+                          : 'Carnet collectif',
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: 16,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '• ${DateFormat.yMd().format(course.date)}',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 12),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Séances restantes: ${card.remainingSessions}/${card.totalSessions}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                'Expire le ${DateFormat('dd/MM/yyyy').format(card.expiryDate)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
             ],
           ),
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildDetailItem(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.blue.withOpacity(0.1),
-            shape: BoxShape.circle,
+  Future<void> _confirmBooking(
+    String userId,
+    String courseId,
+    String membershipCardId,
+    BookingProvider bookingProvider,
+  ) async {
+    print(
+      "Confirming booking for course: $courseId with card: $membershipCardId",
+    );
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final success = await bookingProvider.createBooking(
+        userId: userId,
+        courseId: courseId,
+        membershipCardId: membershipCardId,
+      );
+
+      if (success && mounted) {
+        // Récupérer la carte mise à jour
+        final selectedCard = bookingProvider.userMembershipCards.firstWhere(
+          (card) => card.id == membershipCardId,
+        );
+
+        // Naviguer vers l'écran de succès
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => BookingSuccessScreen(
+                  course: widget.course,
+                  membershipCard: selectedCard,
+                ),
           ),
-          child: Icon(icon, color: Colors.blue, size: 20),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAvailabilityInfo(
-    bool isAvailable,
-    bool isFull,
-    bool isCancelled,
-    bool isPast,
-  ) {
-    IconData icon;
-    Color color;
-    String message;
-
-    if (isCancelled) {
-      icon = Icons.cancel;
-      color = Colors.red;
-      message = 'Ce cours a été annulé';
-    } else if (isPast) {
-      icon = Icons.history;
-      color = Colors.grey;
-      message = 'Ce cours est déjà passé';
-    } else if (isFull) {
-      icon = Icons.group_off;
-      color = Colors.orange;
-      message = 'Ce cours est complet';
-    } else {
-      icon = Icons.check_circle;
-      color = Colors.green;
-      message = 'Ce cours est disponible à la réservation';
+        );
+      } else if (bookingProvider.hasError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(bookingProvider.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: color, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomBar(
-    BuildContext context,
-    bool isAvailable,
-    bool isFull,
-    bool isCancelled,
-    bool isPast,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: AppButton(
-        text:
-            isPast
-                ? 'Cours déjà passé'
-                : isCancelled
-                ? 'Cours annulé'
-                : isFull
-                ? 'Cours complet'
-                : 'Réserver ce cours',
-        onPressed:
-            isAvailable
-                ? () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => CourseBookingScreen(course: course),
-                    ),
-                  );
-                }
-                : null,
-        type: AppButtonType.primary,
-        size: AppButtonSize.large,
-        fullWidth: true,
-        icon: isAvailable ? Icons.event_available : Icons.event_busy,
-      ),
-    );
   }
 }
