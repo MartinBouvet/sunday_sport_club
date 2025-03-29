@@ -49,12 +49,19 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
       // Charger la routine
       _routine = await routineProvider.getRoutineById(widget.routineId);
 
+      // Utiliser la nouvelle méthode pour récupérer les exercices directement
       if (_routine != null) {
-        // Charger les exercices associés
-        for (final exerciseId in _routine!.exerciseIds) {
-          final exercise = await routineProvider.getExerciseById(exerciseId);
-          if (exercise != null) {
-            _exercises.add(exercise);
+        _exercises = await routineProvider.fetchRoutineExercises(widget.routineId);
+        
+        // Si aucun exercice n'est retourné par la méthode directe, on essaie la méthode traditionnelle
+        if (_exercises.isEmpty) {
+          debugPrint('Aucun exercice trouvé via getRoutineExercises, utilisation de la méthode alternative');
+          // Méthode alternative (ancienne approche)
+          for (final exerciseId in _routine!.exerciseIds) {
+            final exercise = await routineProvider.getExerciseById(exerciseId);
+            if (exercise != null) {
+              _exercises.add(exercise);
+            }
           }
         }
       }
@@ -172,7 +179,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                 const SizedBox(width: 12),
                 // Nombre d'exercices
                 _buildInfoChip(
-                  '${_routine!.exerciseIds.length} exercices',
+                  '${_exercises.length} exercices',
                   Icons.fitness_center,
                   Colors.purple,
                 ),

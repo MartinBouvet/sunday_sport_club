@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/routine.dart';
 import '../models/user_routine.dart';
 import '../datasources/supabase/supabase_routine_datasource.dart';
+import '../models/exercise.dart';
 
 class RoutineRepository {
   final SupabaseRoutineDatasource _datasource = SupabaseRoutineDatasource();
@@ -72,4 +73,37 @@ class RoutineRepository {
     return 0;
   }
 }
+Future<List<Exercise>> getRoutineExercises(String routineId) async {
+    try {
+      final exercisesData = await _datasource.getRoutineExercises(routineId);
+      
+      // Convertir les données brutes en objets Exercise
+      List<Exercise> exercises = [];
+      
+      for (var data in exercisesData) {
+        // Vérifier si les données d'exercice sont présentes
+        if (data['exercises'] != null) {
+          // Créer un objet Exercise à partir des données de l'exercice
+          final exercise = Exercise(
+            id: data['exercises']['id'] ?? '',
+            name: data['exercises']['name'] ?? 'Exercice sans nom',
+            description: data['exercises']['description'] ?? '',
+            category: data['exercises']['category'] ?? '',
+            difficulty: data['exercises']['difficulty'] ?? 'intermédiaire',
+            durationSeconds: data['exercises']['duration_seconds'] ?? 60,
+            repetitions: data['reps'] ?? data['exercises']['repetitions'] ?? 10,
+            sets: data['sets'] ?? data['exercises']['sets'] ?? 3,
+            muscleGroup: data['exercises']['muscle_group'] ?? '',
+          );
+          
+          exercises.add(exercise);
+        }
+      }
+      
+      return exercises;
+    } catch (e) {
+      debugPrint('Erreur getRoutineExercises: $e');
+      return [];
+    }
+  }
 }

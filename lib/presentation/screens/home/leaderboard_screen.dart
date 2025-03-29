@@ -7,48 +7,16 @@ import '../../../core/utils/supabase_client.dart';
 import '../../providers/auth_provider.dart';
 import '../profile/profile_screen.dart';
 
-/// Service pour récupérer les données du classement avec API Supabase moderne
+/// Service pour récupérer les données du classement avec API Supabase
 class LeaderboardService {
   // Méthode pour récupérer les utilisateurs triés
   Future<List<Map<String, dynamic>>> getLeaderboardData(String filter, String timeRange) async {
     try {
-      debugPrint('=== LEADERBOARD DEBUG ===');
-      debugPrint('Requête avec filter: $filter, timeRange: $timeRange');
-      
-      // Tentative avec une requête explicite pour contourner les limites RLS potentielles
-      final allUsersQuery = await supabase
-          .from('profiles')
-          .select('*');
-          
-      debugPrint('Query type: ${allUsersQuery.runtimeType}');
-      debugPrint('Résultat initial: longueur=${allUsersQuery is List ? allUsersQuery.length : "non-liste"}');
-      
-      // Tentative alternative avec une API RPC si disponible
-      // Cette approche utilise une fonction côté serveur qui peut contourner les restrictions RLS
-      var allUsersRPC;
-      try {
-        allUsersRPC = await supabase.rpc('get_all_profiles');
-        debugPrint('RPC disponible: ${allUsersRPC != null}, longueur=${allUsersRPC is List ? allUsersRPC.length : "non-liste"}');
-      } catch (rpcError) {
-        debugPrint('RPC non disponible: $rpcError');
-      }
-      
-      // Tentative avec requête SQL directe via fonction d'administration
-      var allUsersAdmin;
-      try {
-        allUsersAdmin = await supabase.rpc('admin_get_all_profiles');
-        debugPrint('Admin RPC disponible: ${allUsersAdmin != null}, longueur=${allUsersAdmin is List ? allUsersAdmin.length : "non-liste"}');
-      } catch (adminError) {
-        debugPrint('Admin RPC non disponible: $adminError');
-      }
-      
       // Requête à Supabase avec options explicites
       List<dynamic> data;
       
       try {
-        // 1. Première tentative avec syntaxe complète
-        debugPrint('Tentative de requête avec options explicites: $filter');
-        
+        // Requête selon le filtre sélectionné
         if (filter == 'xp') {
           data = await supabase
               .from('profiles')
@@ -76,39 +44,15 @@ class LeaderboardService {
               .order('experience_points', ascending: false);
         }
       } catch (primaryError) {
-        debugPrint('Erreur requête principale: $primaryError');
-        
-        // 2. Fallback sur une requête simplifiée si la première échoue
-        debugPrint('Tentative de fallback avec requête simplifiée');
+        // Fallback sur une requête simplifiée si la première échoue
         try {
           data = await supabase
               .from('profiles')
               .select();
         } catch (fallbackError) {
-          debugPrint('Erreur requête fallback: $fallbackError');
-          
-          // 3. Dernier recours : utiliser les données du diagnostic si disponibles
-          if (allUsersRPC is List && allUsersRPC.isNotEmpty) {
-            debugPrint('Utilisation des données RPC comme fallback');
-            data = allUsersRPC;
-          } else if (allUsersAdmin is List && allUsersAdmin.isNotEmpty) {
-            debugPrint('Utilisation des données Admin comme fallback');
-            data = allUsersAdmin;
-          } else if (allUsersQuery is List) {
-            debugPrint('Utilisation des données de diagnostic comme fallback');
-            data = allUsersQuery;
-          } else {
-            debugPrint('Aucune donnée disponible, retour liste vide');
-            return [];
-          }
+          // En cas d'échec sur toutes les requêtes, retourner une liste vide
+          return [];
         }
-      }
-
-      // Débogage détaillé de la réponse
-      debugPrint('Type de réponse finale: ${data.runtimeType}');
-      debugPrint('Response data length: ${data.length}');
-      if (data.isNotEmpty) {
-        debugPrint('Premier élément: ${data[0]}');
       }
 
       // Conversion sécurisée des données
@@ -116,10 +60,9 @@ class LeaderboardService {
       
       for (var item in data) {
         if (item is Map<String, dynamic>) {
-          // Filtrage des entrées null ou invalides
+          // S'assurer que tous les champs requis sont présents, avec fallbacks
           final Map<String, dynamic> validItem = {};
           
-          // S'assurer que tous les champs requis sont présents, avec fallbacks
           validItem['id'] = item['id'] ?? 'unknown_${result.length}';
           validItem['first_name'] = item['first_name'] ?? 'Joueur';
           validItem['last_name'] = item['last_name'] ?? '${result.length + 1}';
@@ -130,10 +73,8 @@ class LeaderboardService {
           validItem['experience_points'] = item['experience_points'] ?? 0;
           validItem['strength'] = item['strength'] ?? 0;
           validItem['endurance'] = item['endurance'] ?? 0;
-          
           result.add(validItem);
-        } else {
-          debugPrint('Élément ignoré, type incorrect: ${item.runtimeType}');
+         
         }
       }
       
@@ -148,13 +89,8 @@ class LeaderboardService {
         result.sort((a, b) => (b['endurance'] ?? 0).compareTo(a['endurance'] ?? 0));
       }
       
-      debugPrint('Nombre d\'éléments dans le résultat final: ${result.length}');
-      debugPrint('=== FIN DEBUG ===');
-      
       return result;
     } catch (e) {
-      debugPrint('Exception générale dans getLeaderboardData: $e');
-      debugPrint('Détails de l\'erreur: $e');
       return [];
     }
   }
@@ -224,15 +160,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       // Charger les données depuis Supabase
       final leaderboardData = await _leaderboardService.getLeaderboardData(_filter, _timeRange);
       
-      debugPrint('Données du leaderboard chargées: ${leaderboardData.length} utilisateurs');
-      
       // Trouver le rang de l'utilisateur actuel
       if (authProvider.currentUser != null) {
         final userId = authProvider.currentUser!.id;
         for (int i = 0; i < leaderboardData.length; i++) {
           if (leaderboardData[i]['id'] == userId) {
             _currentUserRank = i + 1;
-            debugPrint('Rang de l\'utilisateur courant: $_currentUserRank');
             break;
           }
         }
@@ -244,7 +177,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
       });
       
     } catch (e) {
-      debugPrint('Exception dans _loadLeaderboardData: $e');
       setState(() {
         _isLoading = false;
       });
@@ -286,10 +218,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
           : provider.Consumer<AuthProvider>(
               builder: (context, authProvider, _) {
                 final user = authProvider.currentUser;
-                
-                // Débogage supplémentaire dans le build
-                debugPrint('Building leaderboard with ${_leaderboardData.length} users');
-                debugPrint('Current user: ${user?.id}');
                 
                 return Column(
                   children: [
@@ -379,14 +307,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
                                 final userData = _leaderboardData[index];
                                 final rank = index + 1;
                                 final isCurrentUser = user != null && userData['id'] == user.id;
-                                
-                                // Débogage pour chaque élément
-                                if (index == 0) {
-                                  debugPrint('Premier utilisateur: ${userData['first_name']} ${userData['last_name']}');
-                                }
-                                if (isCurrentUser) {
-                                  debugPrint('Utilisateur courant trouvé à l\'index $index');
-                                }
                                 
                                 return InkWell(
                                   onTap: () {
@@ -594,7 +514,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
           _loadLeaderboardData();
         }
       },
-      backgroundColor: Colors.grey[200],
+      backgroundColor: Colors.black,
       selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
     );
   }
@@ -704,7 +624,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> with SingleTicker
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.black,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(

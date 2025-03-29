@@ -14,11 +14,14 @@ class RoutineProvider extends ChangeNotifier {
   Map<String, Exercise> _exercisesCache = {};
   bool _isLoading = false;
   String? _errorMessage;
+  List<Exercise> _currentRoutineExercises = [];
+
 
   List<Routine> get availableRoutines => _availableRoutines;
   List<UserRoutine> get userRoutines => _userRoutines;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  List<Exercise> get currentRoutineExercises => _currentRoutineExercises;
   bool get hasError => _errorMessage != null;
 
   Future<void> fetchAvailableRoutines() async {
@@ -108,6 +111,21 @@ class RoutineProvider extends ChangeNotifier {
     } catch (e) {
       _setError('Erreur lors de la complétion de la routine: ${e.toString()}');
       return false;
+    }
+  }
+
+  Future<List<Exercise>> fetchRoutineExercises(String routineId) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final exercises = await _routineRepository.getRoutineExercises(routineId);
+      _currentRoutineExercises = exercises;
+      _setLoading(false);
+      return exercises;
+    } catch (e) {
+      _setError('Erreur lors du chargement des exercices: ${e.toString()}');
+      return [];
     }
   }
 

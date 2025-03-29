@@ -70,12 +70,28 @@ Future<List<Map<String, dynamic>>> getUserRoutines(String userId) async {
     String routineId,
   ) async {
     try {
-      final response = await _client
+      final dynamic response = await _client
           .from('routine_exercises')
           .select('*, exercises(*)')
           .eq('routine_id', routineId)
-          .order('sequence_num');
-      return response;
+          .order('sequence_order');
+      
+      // Conversion explicite du résultat en List<Map<String, dynamic>>
+      if (response is List) {
+        return response.map((item) {
+          if (item is Map) {
+            // Convertir chaque Map<dynamic, dynamic> en Map<String, dynamic>
+            return Map<String, dynamic>.from(item as Map);
+          } else {
+            // Fallback pour les cas où les éléments ne sont pas des Map
+            debugPrint('Élément inattendu dans la réponse: $item');
+            return <String, dynamic>{};
+          }
+        }).toList();
+      } else {
+        debugPrint('Type de réponse inattendu: ${response.runtimeType}');
+        return [];
+      }
     } catch (e) {
       debugPrint('Erreur getRoutineExercises: $e');
       return [];

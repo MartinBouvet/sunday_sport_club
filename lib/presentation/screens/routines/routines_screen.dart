@@ -353,7 +353,7 @@ class _RoutinesScreenState extends State<RoutinesScreen>
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              '${routine.exerciseIds.length} exercices',
+                              '2 exercices',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey[600],
