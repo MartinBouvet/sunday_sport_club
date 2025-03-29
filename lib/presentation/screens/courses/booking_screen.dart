@@ -48,8 +48,11 @@ class _BookingScreenState extends State<BookingScreen> {
     });
 
     try {
-      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
-      
+      final bookingProvider = Provider.of<BookingProvider>(
+        context,
+        listen: false,
+      );
+
       // Rechercher le cours parmi les cours disponibles
       if (bookingProvider.availableCourses.isEmpty) {
         await bookingProvider.fetchAvailableCourses(
@@ -57,13 +60,13 @@ class _BookingScreenState extends State<BookingScreen> {
           endDate: DateTime.now().add(const Duration(days: 90)),
         );
       }
-      
+
       final coursesList = bookingProvider.availableCourses;
       _course = coursesList.firstWhere(
         (course) => course.id == widget.courseId,
         orElse: () => throw Exception('Cours introuvable'),
       );
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -96,19 +99,22 @@ class _BookingScreenState extends State<BookingScreen> {
     });
 
     try {
-      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+      final bookingProvider = Provider.of<BookingProvider>(
+        context,
+        listen: false,
+      );
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       if (authProvider.currentUser == null) {
         throw Exception('Utilisateur non connecté');
       }
-      
+
       final success = await bookingProvider.createBooking(
         userId: authProvider.currentUser!.id,
         courseId: widget.courseId,
         membershipCardId: _selectedCard!.id,
       );
-      
+
       if (success) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -117,7 +123,7 @@ class _BookingScreenState extends State<BookingScreen> {
               backgroundColor: Colors.green,
             ),
           );
-          
+
           // Retour à l'écran précédent
           Navigator.pop(context);
         }
@@ -133,27 +139,27 @@ class _BookingScreenState extends State<BookingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Réservation de cours'),
-      ),
-      body: _isLoading
-          ? const LoadingIndicator(center: true, message: 'Chargement des informations...')
-          : _errorMessage != null && _course == null
+      appBar: AppBar(title: const Text('Réservation de cours')),
+      body:
+          _isLoading
+              ? const LoadingIndicator(
+                center: true,
+                message: 'Chargement des informations...',
+              )
+              : _errorMessage != null && _course == null
               ? ErrorDisplay(
-                  message: _errorMessage!,
-                  type: ErrorType.network,
-                  actionLabel: 'Réessayer',
-                  onAction: _loadCourseDetails,
-                )
+                message: _errorMessage!,
+                type: ErrorType.network,
+                actionLabel: 'Réessayer',
+                onAction: _loadCourseDetails,
+              )
               : _buildBookingForm(),
     );
   }
 
   Widget _buildBookingForm() {
     if (_course == null) {
-      return const Center(
-        child: Text('Cours introuvable'),
-      );
+      return const Center(child: Text('Cours introuvable'));
     }
 
     return SingleChildScrollView(
@@ -174,13 +180,10 @@ class _BookingScreenState extends State<BookingScreen> {
                 children: [
                   const Text(
                     'Récapitulatif du cours',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   Text(
                     _course!.title,
                     style: const TextStyle(
@@ -189,19 +192,19 @@ class _BookingScreenState extends State<BookingScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  
+
                   _buildInfoRow(
                     Icons.calendar_today,
                     'Date: ${DateFormat('dd/MM/yyyy').format(_course!.date)}',
                   ),
                   const SizedBox(height: 4),
-                  
+
                   _buildInfoRow(
                     Icons.access_time,
                     'Horaire: ${_course!.startTime} - ${_course!.endTime}',
                   ),
                   const SizedBox(height: 4),
-                  
+
                   _buildInfoRow(
                     Icons.people,
                     'Places: ${_course!.currentParticipants}/${_course!.capacity}',
@@ -210,19 +213,16 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Sélection du carnet
           const Text(
             'Choisir un carnet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          
+
           if (widget.availableCards.isEmpty)
             Container(
               padding: const EdgeInsets.all(16),
@@ -238,11 +238,14 @@ class _BookingScreenState extends State<BookingScreen> {
             )
           else
             Column(
-              children: widget.availableCards.map((card) => _buildCardOption(card)).toList(),
+              children:
+                  widget.availableCards
+                      .map((card) => _buildCardOption(card))
+                      .toList(),
             ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Conditions de réservation
           if (_errorMessage != null)
             Padding(
@@ -268,7 +271,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
             ),
-          
+
           Row(
             children: [
               Checkbox(
@@ -294,9 +297,9 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           Text(
             'Vous pouvez annuler jusqu\'à 24h avant le cours sans perdre votre séance.',
             style: TextStyle(
@@ -305,9 +308,9 @@ class _BookingScreenState extends State<BookingScreen> {
               color: Colors.grey[600],
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // Bouton de réservation
           AppButton(
             text: 'Confirmer la réservation',
@@ -325,13 +328,16 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Widget _buildCardOption(MembershipCard card) {
     final isSelected = _selectedCard?.id == card.id;
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+          color:
+              isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.transparent,
           width: isSelected ? 2 : 0,
         ),
       ),
@@ -360,24 +366,18 @@ class _BookingScreenState extends State<BookingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      card.type == 'individuel' ? 'Carnet individuel' : 'Carnet collectif',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      card.type == 'individuel'
+                          ? 'Carnet individuel'
+                          : 'Carnet collectif',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     Text(
                       'Séances restantes: ${card.remainingSessions}/${card.totalSessions}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                     Text(
                       'Expire le: ${DateFormat('dd/MM/yyyy').format(card.expiryDate)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -394,13 +394,7 @@ class _BookingScreenState extends State<BookingScreen> {
       children: [
         Icon(icon, size: 16, color: Colors.grey[600]),
         const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(text, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
       ],
     );
   }
