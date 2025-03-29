@@ -1,352 +1,339 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../../../core/widgets/loading_indicator.dart';
-import '../../../core/widgets/error_display.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../data/models/course.dart';
-import '../../../data/models/membership_card.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/booking_provider.dart';
-import 'booking_screen.dart';
+import 'course_booking_screen.dart';
 
-class CourseDetailScreen extends StatefulWidget {
-  final String courseId;
+class CourseDetailScreen extends StatelessWidget {
+  final Course course;
 
-  const CourseDetailScreen({Key? key, required this.courseId})
-    : super(key: key);
-
-  @override
-  State<CourseDetailScreen> createState() => _CourseDetailScreenState();
-}
-
-class _CourseDetailScreenState extends State<CourseDetailScreen> {
-  bool _isLoading = true;
-  Course? _course;
-  String? _errorMessage;
-  bool _userHasValidCard = false;
-  List<MembershipCard> _availableCards = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCourseDetails();
-  }
-
-  Future<void> _loadCourseDetails() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final bookingProvider = Provider.of<BookingProvider>(
-        context,
-        listen: false,
-      );
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      // Rechercher le cours parmi les cours disponibles
-      if (bookingProvider.availableCourses.isEmpty) {
-        await bookingProvider.fetchAvailableCourses(
-          startDate: DateTime.now(),
-          endDate: DateTime.now().add(const Duration(days: 90)),
-        );
-      }
-
-      final coursesList = bookingProvider.availableCourses;
-      _course = coursesList.firstWhere(
-        (course) => course.id == widget.courseId,
-        orElse: () => throw Exception('Cours introuvable'),
-      );
-
-      // Vérifier si l'utilisateur a une carte d'abonnement valide pour ce type de cours
-      if (authProvider.currentUser != null) {
-        await bookingProvider.fetchUserMembershipCards(
-          authProvider.currentUser!.id,
-        );
-
-        // Filtrer les cartes valides pour ce type de cours
-        final now = DateTime.now();
-        _availableCards =
-            bookingProvider.userMembershipCards.where((card) {
-              // Une carte est valide si elle a des séances restantes, n'est pas expirée
-              // et est du bon type (individuel ou collectif)
-              final bool hasRemainingSession = card.remainingSessions > 0;
-              final bool notExpired = card.expiryDate.isAfter(now);
-              final bool correctType =
-                  _course!.type == AppConstants.membershipTypeCollective ||
-                  (card.type == _course!.type);
-
-              return hasRemainingSession && notExpired && correctType;
-            }).toList();
-
-        _userHasValidCard = _availableCards.isNotEmpty;
-      }
-
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
-    }
-  }
+  const CourseDetailScreen({Key? key, required this.course}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final bool isAvailable =
+        course.status == 'available' &&
+        course.currentParticipants < course.capacity;
+    final bool isFull = course.currentParticipants >= course.capacity;
+    final bool isCancelled = course.status == 'cancelled';
+    final bool isPast = course.date.isBefore(DateTime.now());
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Détails du cours')),
-      body:
-          _isLoading
-              ? const LoadingIndicator(
-                center: true,
-                message: 'Chargement des détails du cours...',
-              )
-              : _errorMessage != null
-              ? ErrorDisplay(
-                message: _errorMessage!,
-                type: ErrorType.network,
-                actionLabel: 'Réessayer',
-                onAction: _loadCourseDetails,
-              )
-              : _buildCourseDetails(),
-    );
-  }
+      appBar: AppBar(title: const Text('Détail du cours')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // En-tête
+            _buildCourseHeader(context),
 
-  Widget _buildCourseDetails() {
-    if (_course == null) {
-      return const Center(child: Text('Cours introuvable'));
-    }
+            const SizedBox(height: 24),
 
-    final bool isIndividual =
-        _course!.type == AppConstants.membershipTypeIndividual;
-    final Color themeColor = isIndividual ? Colors.indigo : Colors.teal;
-    final bool isFull = _course!.currentParticipants >= _course!.capacity;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // En-tête avec image ou icône
-          Container(
-            height: 180,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: themeColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: themeColor.withOpacity(0.3)),
-            ),
-            child: Center(
-              child: Icon(
-                isIndividual ? Icons.person : Icons.group,
-                size: 80,
-                color: themeColor.withOpacity(0.5),
+            // Détails du cours
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Badge de type de cours
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: themeColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: themeColor.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  isIndividual ? Icons.person : Icons.group,
-                  size: 16,
-                  color: themeColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  isIndividual ? 'Cours individuel' : 'Cours collectif',
-                  style: TextStyle(
-                    color: themeColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Titre et infos principales
-          Text(
-            _course!.title,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          _buildInfoRow(Icons.person, 'Coach: ${_getCoachName()}'),
-          const SizedBox(height: 4),
-          _buildInfoRow(
-            Icons.calendar_today,
-            'Date: ${DateFormat('dd/MM/yyyy').format(_course!.date)}',
-          ),
-          const SizedBox(height: 4),
-          _buildInfoRow(
-            Icons.access_time,
-            'Horaire: ${_course!.startTime} - ${_course!.endTime}',
-          ),
-          const SizedBox(height: 4),
-          _buildInfoRow(
-            Icons.people,
-            'Participants: ${_course!.currentParticipants}/${_course!.capacity}',
-            isFull ? Colors.red : null,
-          ),
-
-          const SizedBox(height: 24),
-
-          // Description détaillée
-          const Text(
-            'Description',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(_course!.description, style: const TextStyle(fontSize: 16)),
-
-          const SizedBox(height: 32),
-
-          // Indication pour la réservation
-          if (isFull) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.red),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Cours complet',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Il n\'y a plus de places disponibles pour ce cours.',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ],
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Détails du cours',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ] else if (!_userHasValidCard) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Pas de carnet valide',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Vous n\'avez pas de carnet valide pour réserver ce cours.',
-                          style: TextStyle(color: Colors.orange),
-                        ),
-                      ],
+                    const SizedBox(height: 16),
+
+                    _buildDetailItem(
+                      Icons.calendar_today,
+                      'Date',
+                      DateFormat.yMMMMd().format(course.date),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+
+                    _buildDetailItem(
+                      Icons.access_time,
+                      'Horaire',
+                      '${course.startTime} - ${course.endTime}',
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildDetailItem(
+                      course.type == 'individuel' ? Icons.person : Icons.group,
+                      'Type de cours',
+                      course.type == 'individuel' ? 'Individuel' : 'Collectif',
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildDetailItem(
+                      Icons.people,
+                      'Participants',
+                      '${course.currentParticipants}/${course.capacity}',
+                    ),
+                  ],
+                ),
               ),
             ),
+
+            const SizedBox(height: 24),
+
+            // Description du cours
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Description',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    Text(
+                      course.description,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[800],
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Information sur la disponibilité
+            _buildAvailabilityInfo(isAvailable, isFull, isCancelled, isPast),
+
+            const SizedBox(height: 32),
           ],
-
-          const SizedBox(height: 32),
-
-          // Bouton de réservation
-          AppButton(
-            text: 'Réserver ce cours',
-            onPressed:
-                (!isFull && _userHasValidCard)
-                    ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => BookingScreen(
-                                courseId: _course!.id,
-                                availableCards: _availableCards,
-                              ),
-                        ),
-                      ).then((_) => _loadCourseDetails());
-                    }
-                    : null,
-            type: AppButtonType.primary,
-            size: AppButtonSize.large,
-            fullWidth: true,
-            icon: Icons.event_available,
-          ),
-
-          if (!_userHasValidCard)
-            Padding(
-              padding: const EdgeInsets.only(top: 16.0),
-              child: AppButton(
-                text: 'Acheter un carnet',
-                onPressed: () {
-                  // Naviguer vers l'écran d'achat de carnet
-                },
-                type: AppButtonType.outline,
-                size: AppButtonSize.medium,
-                fullWidth: true,
-                icon: Icons.card_membership,
-              ),
-            ),
-        ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomBar(
+        context,
+        isAvailable,
+        isFull,
+        isCancelled,
+        isPast,
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text, [Color? color]) {
+  Widget _buildCourseHeader(BuildContext context) {
+    // Icône en fonction du type de cours
+    IconData courseIcon =
+        course.type == 'individuel' ? Icons.person : Icons.group;
+    Color courseColor =
+        course.type == 'individuel' ? Colors.indigo : Colors.teal;
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 16, color: color ?? Colors.grey[600]),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: TextStyle(fontSize: 14, color: color ?? Colors.grey[600]),
+        // Icône du cours
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: courseColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(courseIcon, color: courseColor, size: 32),
+        ),
+        const SizedBox(width: 16),
+
+        // Titre et détails rapides
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                course.title,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          course.type == 'individuel'
+                              ? Colors.indigo.withOpacity(0.1)
+                              : Colors.teal.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      course.type == 'individuel' ? 'Individuel' : 'Collectif',
+                      style: TextStyle(
+                        color:
+                            course.type == 'individuel'
+                                ? Colors.indigo
+                                : Colors.teal,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '• ${DateFormat.yMd().format(course.date)}',
+                    style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  String _getCoachName() {
-    // Dans une implémentation réelle, on récupérerait le nom du coach via son ID
-    return "Laurent Dubois";
+  Widget _buildDetailItem(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.blue.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.blue, size: 20),
+        ),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvailabilityInfo(
+    bool isAvailable,
+    bool isFull,
+    bool isCancelled,
+    bool isPast,
+  ) {
+    IconData icon;
+    Color color;
+    String message;
+
+    if (isCancelled) {
+      icon = Icons.cancel;
+      color = Colors.red;
+      message = 'Ce cours a été annulé';
+    } else if (isPast) {
+      icon = Icons.history;
+      color = Colors.grey;
+      message = 'Ce cours est déjà passé';
+    } else if (isFull) {
+      icon = Icons.group_off;
+      color = Colors.orange;
+      message = 'Ce cours est complet';
+    } else {
+      icon = Icons.check_circle;
+      color = Colors.green;
+      message = 'Ce cours est disponible à la réservation';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+    BuildContext context,
+    bool isAvailable,
+    bool isFull,
+    bool isCancelled,
+    bool isPast,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: AppButton(
+        text:
+            isPast
+                ? 'Cours déjà passé'
+                : isCancelled
+                ? 'Cours annulé'
+                : isFull
+                ? 'Cours complet'
+                : 'Réserver ce cours',
+        onPressed:
+            isAvailable
+                ? () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CourseBookingScreen(course: course),
+                    ),
+                  );
+                }
+                : null,
+        type: AppButtonType.primary,
+        size: AppButtonSize.large,
+        fullWidth: true,
+        icon: isAvailable ? Icons.event_available : Icons.event_busy,
+      ),
+    );
   }
 }

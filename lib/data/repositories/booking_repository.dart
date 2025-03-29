@@ -32,7 +32,22 @@ class BookingRepository {
   }
 
   Future<String> createBooking(Booking booking) async {
-    return await _datasource.createBooking(booking.toJson());
+    try {
+      // Créer la réservation
+      final bookingId = await _datasource.createBooking(booking.toJson());
+
+      // Réduire le nombre de séances sur la carte d'abonnement si fournie
+      if (booking.membershipCardId != null) {
+        final membershipRepository = MembershipRepository();
+        await membershipRepository.decrementRemainingSession(
+          booking.membershipCardId!,
+        );
+      }
+
+      return bookingId;
+    } catch (e) {
+      throw Exception('Erreur lors de la création de la réservation: $e');
+    }
   }
 
   Future<void> updateBooking(
