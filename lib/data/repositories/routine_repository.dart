@@ -56,6 +56,7 @@ class RoutineRepository {
     }
   }
 
+  // Méthodes ajoutées pour l'admin dashboard
   Future<int> getPendingValidationCount() async {
   try {
     // Utiliser le datasource pour récupérer les routines en attente
@@ -71,17 +72,4 @@ class RoutineRepository {
     return 0;
   }
 }
-Future<bool> validateUserRoutine(
-    String userRoutineId, 
-    String adminId, 
-    String feedback,
-    int xpPoints,
-  ) async {
-    return await _datasource.validateUserRoutine(
-      userRoutineId,
-      adminId,
-      feedback,
-      xpPoints
-    );
-  }
 }

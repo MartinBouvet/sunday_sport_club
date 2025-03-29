@@ -22,7 +22,8 @@ class RoutinesScreen extends StatefulWidget {
   State<RoutinesScreen> createState() => _RoutinesScreenState();
 }
 
-class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProviderStateMixin {
+class _RoutinesScreenState extends State<RoutinesScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
 
@@ -61,15 +62,20 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final routineProvider = Provider.of<RoutineProvider>(context, listen: false);
+      final routineProvider = Provider.of<RoutineProvider>(
+        context,
+        listen: false,
+      );
 
       if (authProvider.currentUser != null) {
-        debugPrint("Récupération des routines pour l'utilisateur: ${authProvider.currentUser!.id}");
-        
-        // Chargement des routines disponibles d'abord (toutes les routines) 
+        debugPrint(
+          "Récupération des routines pour l'utilisateur: ${authProvider.currentUser!.id}",
+        );
+
+        // Chargement des routines disponibles d'abord (toutes les routines)
         await routineProvider.fetchAvailableRoutines();
-        
-        // Puis chargement des routines de l'utilisateur (pour les onglets En cours et Terminées)
+
+        // Charger les routines de l'utilisateur
         await routineProvider.fetchUserRoutines(authProvider.currentUser!.id);
       }
     } catch (e) {
@@ -104,7 +110,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.currentUser;
-          
+
           if (user == null) {
             return const Center(
               child: Text('Veuillez vous connecter pour accéder à cette page'),
@@ -159,6 +165,8 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                 default:
                   return _buildEmptyState();
               }
+              
+              // Le code ci-dessous est inaccessible (dead code) et a été supprimé
             },
           );
         },
@@ -167,10 +175,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         currentIndex: 1, // Routines
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
           BottomNavigationBarItem(
             icon: Icon(Icons.fitness_center),
             label: 'Routines',
@@ -179,10 +184,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
             icon: Icon(Icons.event_available),
             label: 'Cours',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
         onTap: (index) {
           switch (index) {
@@ -198,7 +200,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
             case 2:
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const CourseListScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const CourseListScreen(),
+                ),
               );
               break;
             case 3:
@@ -220,7 +224,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
 
   Widget _buildEmptyState() {
     String message = '';
-    
+
     switch (_tabController.index) {
       case 0:
         message = 'Aucune routine disponible actuellement';
@@ -232,32 +236,22 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         message = 'Vous n\'avez pas encore terminé de routines';
         break;
     }
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.fitness_center,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.fitness_center, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             message,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
             'Les routines sont des programmes d\'entraînement personnalisés.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -426,9 +420,9 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
                             estimatedDurationMinutes: 0,
                             exerciseIds: [],
                             exerciseDetails: {},
-                            createdBy: 'system', // Paramètre obligatoire manquant
-                            createdAt: DateTime.now(), // Paramètre obligatoire manquant
-                            isPublic: true, // Paramètre obligatoire manquant
+                            createdBy: 'system',
+                            createdAt: DateTime.now(),
+                            isPublic: true,
                           ));
           
           return Card(
@@ -615,7 +609,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   Widget _buildStatusBadge(String status) {
     String label;
     Color color;
-    
+
     switch (status) {
       case 'pending':
         label = 'À faire';
@@ -637,7 +631,7 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
         label = status;
         color = Colors.grey;
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -654,17 +648,19 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
       ),
     );
   }
-  
+
   Widget _buildDifficultyBadge(String difficulty) {
     Color color;
     
     switch (difficulty.toLowerCase()) {
+      case 'débutant':
       case 'facile':
         color = Colors.green;
         break;
       case 'intermédiaire':
         color = Colors.orange;
         break;
+      case 'avancé':
       case 'difficile':
         color = Colors.red;
         break;
@@ -675,14 +671,13 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
       ),
       child: Text(
         difficulty,
-        style: TextStyle(
-          color: color,
+        style: const TextStyle(
+          color: Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
@@ -691,6 +686,6 @@ class _RoutinesScreenState extends State<RoutinesScreen> with SingleTickerProvid
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+    return DateFormat('dd/MM/yyyy').format(date);
   }
 }

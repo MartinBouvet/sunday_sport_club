@@ -118,6 +118,7 @@ Future<List<Map<String, dynamic>>> getUserRoutines(String userId) async {
     }
   }
 
+  // Méthodes pour l'admin
   Future<List<Map<String, dynamic>>> getPendingValidationRoutines() async {
   try {
     // Requête à Supabase pour récupérer les routines avec statut 'completed'

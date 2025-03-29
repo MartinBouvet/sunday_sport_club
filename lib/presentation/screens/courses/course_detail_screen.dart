@@ -14,7 +14,8 @@ import 'booking_screen.dart';
 class CourseDetailScreen extends StatefulWidget {
   final String courseId;
 
-  const CourseDetailScreen({Key? key, required this.courseId}) : super(key: key);
+  const CourseDetailScreen({Key? key, required this.courseId})
+    : super(key: key);
 
   @override
   State<CourseDetailScreen> createState() => _CourseDetailScreenState();
@@ -40,9 +41,12 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     });
 
     try {
-      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+      final bookingProvider = Provider.of<BookingProvider>(
+        context,
+        listen: false,
+      );
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Rechercher le cours parmi les cours disponibles
       if (bookingProvider.availableCourses.isEmpty) {
         await bookingProvider.fetchAvailableCourses(
@@ -50,33 +54,37 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
           endDate: DateTime.now().add(const Duration(days: 90)),
         );
       }
-      
+
       final coursesList = bookingProvider.availableCourses;
       _course = coursesList.firstWhere(
         (course) => course.id == widget.courseId,
         orElse: () => throw Exception('Cours introuvable'),
       );
-      
+
       // Vérifier si l'utilisateur a une carte d'abonnement valide pour ce type de cours
       if (authProvider.currentUser != null) {
-        await bookingProvider.fetchUserMembershipCards(authProvider.currentUser!.id);
-        
+        await bookingProvider.fetchUserMembershipCards(
+          authProvider.currentUser!.id,
+        );
+
         // Filtrer les cartes valides pour ce type de cours
         final now = DateTime.now();
-        _availableCards = bookingProvider.userMembershipCards.where((card) {
-          // Une carte est valide si elle a des séances restantes, n'est pas expirée
-          // et est du bon type (individuel ou collectif)
-          final bool hasRemainingSession = card.remainingSessions > 0;
-          final bool notExpired = card.expiryDate.isAfter(now);
-          final bool correctType = _course!.type == AppConstants.membershipTypeCollective || 
-                                  (card.type == _course!.type);
-          
-          return hasRemainingSession && notExpired && correctType;
-        }).toList();
-        
+        _availableCards =
+            bookingProvider.userMembershipCards.where((card) {
+              // Une carte est valide si elle a des séances restantes, n'est pas expirée
+              // et est du bon type (individuel ou collectif)
+              final bool hasRemainingSession = card.remainingSessions > 0;
+              final bool notExpired = card.expiryDate.isAfter(now);
+              final bool correctType =
+                  _course!.type == AppConstants.membershipTypeCollective ||
+                  (card.type == _course!.type);
+
+              return hasRemainingSession && notExpired && correctType;
+            }).toList();
+
         _userHasValidCard = _availableCards.isNotEmpty;
       }
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -91,33 +99,34 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Détails du cours'),
-      ),
-      body: _isLoading
-          ? const LoadingIndicator(center: true, message: 'Chargement des détails du cours...')
-          : _errorMessage != null
+      appBar: AppBar(title: const Text('Détails du cours')),
+      body:
+          _isLoading
+              ? const LoadingIndicator(
+                center: true,
+                message: 'Chargement des détails du cours...',
+              )
+              : _errorMessage != null
               ? ErrorDisplay(
-                  message: _errorMessage!,
-                  type: ErrorType.network,
-                  actionLabel: 'Réessayer',
-                  onAction: _loadCourseDetails,
-                )
+                message: _errorMessage!,
+                type: ErrorType.network,
+                actionLabel: 'Réessayer',
+                onAction: _loadCourseDetails,
+              )
               : _buildCourseDetails(),
     );
   }
 
   Widget _buildCourseDetails() {
     if (_course == null) {
-      return const Center(
-        child: Text('Cours introuvable'),
-      );
+      return const Center(child: Text('Cours introuvable'));
     }
 
-    final bool isIndividual = _course!.type == AppConstants.membershipTypeIndividual;
+    final bool isIndividual =
+        _course!.type == AppConstants.membershipTypeIndividual;
     final Color themeColor = isIndividual ? Colors.indigo : Colors.teal;
     final bool isFull = _course!.currentParticipants >= _course!.capacity;
-    
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -141,7 +150,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Badge de type de cours
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -170,26 +179,23 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Titre et infos principales
           Text(
             _course!.title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           _buildInfoRow(Icons.person, 'Coach: ${_getCoachName()}'),
           const SizedBox(height: 4),
           _buildInfoRow(
-            Icons.calendar_today, 
-            'Date: ${DateFormat('dd/MM/yyyy').format(_course!.date)}'
+            Icons.calendar_today,
+            'Date: ${DateFormat('dd/MM/yyyy').format(_course!.date)}',
           ),
           const SizedBox(height: 4),
           _buildInfoRow(
-            Icons.access_time, 
-            'Horaire: ${_course!.startTime} - ${_course!.endTime}'
+            Icons.access_time,
+            'Horaire: ${_course!.startTime} - ${_course!.endTime}',
           ),
           const SizedBox(height: 4),
           _buildInfoRow(
@@ -197,25 +203,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
             'Participants: ${_course!.currentParticipants}/${_course!.capacity}',
             isFull ? Colors.red : null,
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Description détaillée
           const Text(
             'Description',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text(
-            _course!.description,
-            style: const TextStyle(fontSize: 16),
-          ),
-          
+          Text(_course!.description, style: const TextStyle(fontSize: 16)),
+
           const SizedBox(height: 32),
-          
+
           // Indication pour la réservation
           if (isFull) ...[
             Container(
@@ -286,29 +286,33 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               ),
             ),
           ],
-          
+
           const SizedBox(height: 32),
-          
+
           // Bouton de réservation
           AppButton(
             text: 'Réserver ce cours',
-            onPressed: (!isFull && _userHasValidCard) ? () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BookingScreen(
-                    courseId: _course!.id,
-                    availableCards: _availableCards,
-                  ),
-                ),
-              ).then((_) => _loadCourseDetails());
-            } : null,
+            onPressed:
+                (!isFull && _userHasValidCard)
+                    ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => BookingScreen(
+                                courseId: _course!.id,
+                                availableCards: _availableCards,
+                              ),
+                        ),
+                      ).then((_) => _loadCourseDetails());
+                    }
+                    : null,
             type: AppButtonType.primary,
             size: AppButtonSize.large,
             fullWidth: true,
             icon: Icons.event_available,
           ),
-          
+
           if (!_userHasValidCard)
             Padding(
               padding: const EdgeInsets.only(top: 16.0),
@@ -316,7 +320,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 text: 'Acheter un carnet',
                 onPressed: () {
                   // Naviguer vers l'écran d'achat de carnet
-                  // TODO: Implémenter la navigation vers l'écran d'achat
                 },
                 type: AppButtonType.outline,
                 size: AppButtonSize.medium,
@@ -336,10 +339,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         const SizedBox(width: 8),
         Text(
           text,
-          style: TextStyle(
-            fontSize: 14,
-            color: color ?? Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 14, color: color ?? Colors.grey[600]),
         ),
       ],
     );
@@ -347,7 +347,6 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
   String _getCoachName() {
     // Dans une implémentation réelle, on récupérerait le nom du coach via son ID
-    // Pour cette démo, on retourne un nom fixe
     return "Laurent Dubois";
   }
 }

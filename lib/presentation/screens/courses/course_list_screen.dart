@@ -8,9 +8,6 @@ import '../../../core/constants/app_constants.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import 'course_detail_screen.dart';
-import '../home/home_screen.dart';
-import '../profile/profile_screen.dart';
-import '../routines/routines_screen.dart';
 
 class CourseListScreen extends StatefulWidget {
   const CourseListScreen({super.key});
@@ -19,7 +16,8 @@ class CourseListScreen extends StatefulWidget {
   State<CourseListScreen> createState() => _CourseListScreenState();
 }
 
-class _CourseListScreenState extends State<CourseListScreen> with SingleTickerProviderStateMixin {
+class _CourseListScreenState extends State<CourseListScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   DateTime _startDate = DateTime.now();
   String _selectedType = 'all'; // 'all', 'individuel', 'collectif'
@@ -64,29 +62,35 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
     });
 
     try {
-      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
-      
+      final bookingProvider = Provider.of<BookingProvider>(
+        context,
+        listen: false,
+      );
+
       // Définir la période de filtrage selon l'onglet sélectionné
-      final DateTime endDate = _tabController.index == 2
-          ? _startDate.add(const Duration(days: 30)) // Mois
-          : _startDate.add(const Duration(days: 7));  // Semaine
-      
+      final DateTime endDate =
+          _tabController.index == 2
+              ? _startDate.add(const Duration(days: 30)) // Mois
+              : _startDate.add(const Duration(days: 7)); // Semaine
+
       // Filtrer par type si nécessaire
       final String? type = _selectedType == 'all' ? null : _selectedType;
-      
+
       // Charger les cours disponibles
       await bookingProvider.fetchAvailableCourses(
         startDate: _startDate,
         endDate: endDate,
         type: type,
       );
-      
+
       // Charger les cartes d'abonnement de l'utilisateur
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.currentUser != null) {
-        await bookingProvider.fetchUserMembershipCards(authProvider.currentUser!.id);
+        await bookingProvider.fetchUserMembershipCards(
+          authProvider.currentUser!.id,
+        );
       }
-      
+
       setState(() {
         _isLoading = false;
       });
@@ -94,7 +98,7 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
       setState(() {
         _isLoading = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -118,66 +122,12 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
             Tab(text: 'Semaine prochaine'),
             Tab(text: 'Mois prochain'),
           ],
-          labelColor: Colors.white, // Couleur du texte sélectionné
-    unselectedLabelColor: Colors.white.withOpacity(0.7), // Couleur du texte non sélectionné
-    labelStyle: const TextStyle(fontWeight: FontWeight.bold), // Texte en gras quand sélectionné
-    indicatorColor: Colors.white, // Couleur de l'indicateur (ligne sous l'onglet)
-    indicatorWeight: 3.0,
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2, // Onglet actif (Routines)
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.fitness_center),
-            label: 'Routines',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event_available),
-            label: 'Cours',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
-              );
-              break;
-            case 1:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const RoutinesScreen()),
-              );
-              break;
-            case 2:
-              break;
-            case 3:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-              break;
-          }
-        },
       ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.currentUser;
-          
+
           if (user == null) {
             return const Center(
               child: Text('Veuillez vous connecter pour accéder aux cours'),
@@ -208,11 +158,14 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text('Individuel'),
-                      selected: _selectedType == AppConstants.membershipTypeIndividual,
+                      selected:
+                          _selectedType ==
+                          AppConstants.membershipTypeIndividual,
                       onSelected: (selected) {
                         if (selected) {
                           setState(() {
-                            _selectedType = AppConstants.membershipTypeIndividual;
+                            _selectedType =
+                                AppConstants.membershipTypeIndividual;
                           });
                           _loadCourses();
                         }
@@ -221,11 +174,14 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text('Collectif'),
-                      selected: _selectedType == AppConstants.membershipTypeCollective,
+                      selected:
+                          _selectedType ==
+                          AppConstants.membershipTypeCollective,
                       onSelected: (selected) {
                         if (selected) {
                           setState(() {
-                            _selectedType = AppConstants.membershipTypeCollective;
+                            _selectedType =
+                                AppConstants.membershipTypeCollective;
                           });
                           _loadCourses();
                         }
@@ -234,41 +190,48 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                   ],
                 ),
               ),
-              
+
               // Liste des cours
               Expanded(
-                child: _isLoading
-                    ? const LoadingIndicator(center: true, message: 'Chargement des cours...')
-                    : Consumer<BookingProvider>(
-                        builder: (context, bookingProvider, _) {
-                          if (bookingProvider.hasError) {
-                            return ErrorDisplay(
-                              message: bookingProvider.errorMessage!,
-                              type: ErrorType.network,
-                              actionLabel: 'Réessayer',
-                              onAction: _loadCourses,
+                child:
+                    _isLoading
+                        ? const LoadingIndicator(
+                          center: true,
+                          message: 'Chargement des cours...',
+                        )
+                        : Consumer<BookingProvider>(
+                          builder: (context, bookingProvider, _) {
+                            if (bookingProvider.hasError) {
+                              return ErrorDisplay(
+                                message: bookingProvider.errorMessage!,
+                                type: ErrorType.network,
+                                actionLabel: 'Réessayer',
+                                onAction: _loadCourses,
+                              );
+                            }
+
+                            final courses = bookingProvider.availableCourses;
+
+                            if (courses.isEmpty) {
+                              return _buildEmptyState();
+                            }
+
+                            return RefreshIndicator(
+                              onRefresh: _loadCourses,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: courses.length,
+                                itemBuilder: (context, index) {
+                                  final course = courses[index];
+                                  return _buildCourseCard(
+                                    course,
+                                    bookingProvider,
+                                  );
+                                },
+                              ),
                             );
-                          }
-
-                          final courses = bookingProvider.availableCourses;
-                          
-                          if (courses.isEmpty) {
-                            return _buildEmptyState();
-                          }
-
-                          return RefreshIndicator(
-                            onRefresh: _loadCourses,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: courses.length,
-                              itemBuilder: (context, index) {
-                                final course = courses[index];
-                                return _buildCourseCard(course, bookingProvider);
-                              },
-                            ),
-                          );
-                        },
-                      ),
+                          },
+                        ),
               ),
             ],
           );
@@ -282,26 +245,16 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.event_busy,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           const Text(
             'Aucun cours disponible pour cette période',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Essayez de changer de date ou de type de cours',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -309,16 +262,15 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
   }
 
   Widget _buildCourseCard(Course course, BookingProvider bookingProvider) {
-    final bool isIndividual = course.type == AppConstants.membershipTypeIndividual;
+    final bool isIndividual =
+        course.type == AppConstants.membershipTypeIndividual;
     final Color cardColor = isIndividual ? Colors.indigo : Colors.teal;
     final bool isFull = course.currentParticipants >= course.capacity;
-    
+
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -332,16 +284,16 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: cardColor.withOpacity(0.3),
-              width: 1,
-            ),
+            border: Border.all(color: cardColor.withOpacity(0.3), width: 1),
           ),
           child: Column(
             children: [
               // En-tête avec type de cours et capacité
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: cardColor.withOpacity(0.1),
                   borderRadius: const BorderRadius.only(
@@ -381,7 +333,8 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                           '${course.currentParticipants}/${course.capacity}',
                           style: TextStyle(
                             color: isFull ? Colors.red : Colors.grey[600],
-                            fontWeight: isFull ? FontWeight.bold : FontWeight.normal,
+                            fontWeight:
+                                isFull ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                       ],
@@ -389,7 +342,7 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                   ],
                 ),
               ),
-              
+
               // Contenu principal
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -415,9 +368,7 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                         const SizedBox(width: 8),
                         Text(
                           DateFormat('dd/MM/yyyy').format(course.date),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                          ),
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
                         const SizedBox(width: 16),
                         Icon(
@@ -428,14 +379,12 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                         const SizedBox(width: 8),
                         Text(
                           '${course.startTime} - ${course.endTime}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                          ),
+                          style: TextStyle(color: Colors.grey[600]),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Description
                     Text(
                       course.description,
@@ -444,18 +393,23 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                       style: const TextStyle(fontSize: 14),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Statut et bouton
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         if (isFull)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red.withOpacity(0.3)),
+                              border: Border.all(
+                                color: Colors.red.withOpacity(0.3),
+                              ),
                             ),
                             child: const Text(
                               'Complet',
@@ -466,16 +420,22 @@ class _CourseListScreenState extends State<CourseListScreen> with SingleTickerPr
                               ),
                             ),
                           ),
-                        
+
                         ElevatedButton.icon(
-                          onPressed: isFull ? null : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CourseDetailScreen(courseId: course.id),
-                              ),
-                            );
-                          },
+                          onPressed:
+                              isFull
+                                  ? null
+                                  : () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => CourseDetailScreen(
+                                              courseId: course.id,
+                                            ),
+                                      ),
+                                    );
+                                  },
                           icon: const Icon(Icons.visibility, size: 16),
                           label: const Text('Détails'),
                           style: ElevatedButton.styleFrom(
