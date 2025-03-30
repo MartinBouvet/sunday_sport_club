@@ -118,10 +118,13 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint("Fetching bookings for user: $userId");
       _userBookings = await _bookingRepository.getUserBookings(userId);
+      debugPrint("Found ${_userBookings.length} bookings");
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      debugPrint("Error fetching bookings: $e");
       _errorMessage =
           'Erreur lors de la récupération des réservations: ${e.toString()}';
       _isLoading = false;
@@ -170,20 +173,41 @@ class BookingProvider extends ChangeNotifier {
         "Creating booking: userId=$userId, courseId=$courseId, membershipCardId=$membershipCardId",
       );
 
-      // Vérifier directement le cours (simplification)
-      var course = _availableCourses.firstWhere(
-        (c) => c.id == courseId,
-        orElse:
-            () => throw Exception('Cours non trouvé dans la liste disponible'),
-      );
+      // Vérifier que le cours existe et a des places disponibles
+      final course = await _courseRepository.getCourse(courseId);
+      if (course == null) {
+        throw Exception('Cours introuvable');
+      }
 
-      // Vérifier directement la carte (simplification)
-      var card = _userMembershipCards.firstWhere(
-        (c) => c.id == membershipCardId,
-        orElse: () => throw Exception('Carte non trouvée'),
-      );
+      if (course.currentParticipants >= course.capacity) {
+        throw Exception('Ce cours est complet');
+      }
 
-      // Créer manuellement la réservation
+      // Vérifier que la carte d'abonnement est valide
+      final card = await _membershipRepository.getMembershipCard(
+        membershipCardId,
+      );
+      if (card == null) {
+        throw Exception('Carte d\'abonnement introuvable');
+      }
+
+      if (card.remainingSessions <= 0) {
+        throw Exception('Carte d\'abonnement épuisée');
+      }
+
+      final now = DateTime.now();
+      if (card.expiryDate.isBefore(now)) {
+        throw Exception('Carte d\'abonnement expirée');
+      }
+
+      // Vérifier que le type de carte correspond au type de cours
+      if (card.type == 'individuel' && course.type != 'individuel') {
+        throw Exception(
+          'Cette carte ne permet pas de réserver ce type de cours',
+        );
+      }
+
+      // Créer la réservation
       Booking booking = Booking(
         id: 'booking-${DateTime.now().millisecondsSinceEpoch}',
         userId: userId,
@@ -193,31 +217,19 @@ class BookingProvider extends ChangeNotifier {
         membershipCardId: membershipCardId,
       );
 
-      // Simuler la création pour test - ne fait pas d'appel API
+      // Appeler le repository pour créer la réservation
+      final bookingId = await _bookingRepository.createBooking(booking);
+      booking = booking.copyWith(id: bookingId);
+
+      // Ajouter la réservation à la liste locale
       _userBookings.add(booking);
 
-      // Mise à jour locale des données
-      // Mettre à jour la carte
-      int cardIndex = _userMembershipCards.indexWhere(
-        (c) => c.id == membershipCardId,
+      // Mettre à jour les données locales
+      await fetchUserMembershipCards(userId);
+      await fetchAvailableCourses(
+        startDate: DateTime.now(),
+        endDate: DateTime.now().add(const Duration(days: 30)),
       );
-      if (cardIndex >= 0) {
-        _userMembershipCards[cardIndex] = _userMembershipCards[cardIndex]
-            .copyWith(
-              remainingSessions:
-                  _userMembershipCards[cardIndex].remainingSessions - 1,
-            );
-      }
-
-      // Mettre à jour le cours
-      int courseIndex = _availableCourses.indexWhere((c) => c.id == courseId);
-      if (courseIndex >= 0) {
-        _availableCourses[courseIndex] = _availableCourses[courseIndex]
-            .copyWith(
-              currentParticipants:
-                  _availableCourses[courseIndex].currentParticipants + 1,
-            );
-      }
 
       _successMessage = 'Réservation créée avec succès';
       _isLoading = false;
@@ -239,7 +251,11 @@ class BookingProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Pour le développement, simuler une annulation réussie
+      await _bookingRepository.updateBooking(bookingId, {
+        'status': 'cancelled',
+      });
+
+      // Mettre à jour la liste locale
       final index = _userBookings.indexWhere((b) => b.id == bookingId);
       if (index != -1) {
         _userBookings[index] = _userBookings[index].copyWith(
@@ -257,5 +273,16 @@ class BookingProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  void setSelectedCourse(Course course) {
+    _selectedCourse = course;
+    notifyListeners();
+  }
+
+  void clearMessages() {
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
   }
 }

@@ -176,7 +176,7 @@ class _CourseListScreenState extends State<CourseListScreen>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CourseDetailScreen(course: course),
+              builder: (context) => CourseDetailScreen(courseId: course.id),
             ),
           );
         },
