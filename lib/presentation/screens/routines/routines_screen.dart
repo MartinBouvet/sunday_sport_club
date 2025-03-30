@@ -165,8 +165,6 @@ class _RoutinesScreenState extends State<RoutinesScreen>
                 default:
                   return _buildEmptyState();
               }
-              
-              // Le code ci-dessous est inaccessible (dead code) et a été supprimé
             },
           );
         },
